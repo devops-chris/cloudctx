@@ -1,22 +1,26 @@
-# cloudctx configuration example
-# Copy to ~/.config/cloudctx/config.yaml
+# cloudctx configuration
+# Copy to: ~/.config/cloudctx/config.yaml
 
-# Default cloud provider when running just 'cloudctx'
+# Default cloud provider (aws, azure, gcp)
+# When set, you can just run 'cloudctx' instead of 'cloudctx aws'
 default_cloud: aws
 
 # AWS settings
 aws:
-  # Your AWS SSO portal URL (required for sync)
+  # Your organization's AWS SSO portal URL (required for sync)
   sso_start_url: https://your-org.awsapps.com/start
   
-  # AWS SSO region
+  # AWS SSO region (usually us-east-1)
   sso_region: us-east-1
   
-  # Default region for generated profiles
+  # Default AWS region for generated profiles
   default_region: us-east-1
 
-# Azure settings (future)
+# Azure settings (coming soon)
 # azure:
 #   tenant_id: your-tenant-id
-#   subscription_id: default-subscription-id
+#   default_subscription: your-subscription-id
 
+# GCP settings (coming soon)
+# gcp:
+#   default_project: your-project-id

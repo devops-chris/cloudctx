@@ -1,14 +1,15 @@
 # cloudctx
 
-A unified CLI for switching between cloud contexts. Think `kubectx` but for cloud providers.
+A unified CLI for switching between cloud contexts. Think **kubectx** for cloud providers.
 
-Supports AWS profiles (via SSO), with Azure and GCP support planned.
+[![Release](https://img.shields.io/github/v/release/devops-chris/cloudctx)](https://github.com/devops-chris/cloudctx/releases)
+[![License](https://img.shields.io/github/license/devops-chris/cloudctx)](LICENSE)
 
 ## Features
 
 - Interactive profile picker with fuzzy filtering
 - AWS SSO integration with automatic profile sync
-- No shell integration required - just works like kubectx
+- No shell integration required - works like kubectx
 - Pretty terminal output with tables and colors
 - JSON output for scripting
 - Cross-platform (macOS, Linux, Windows)
@@ -29,69 +30,54 @@ go install github.com/devops-chris/cloudctx@latest
 
 ### Manual
 
-Download the latest release from [GitHub Releases](https://github.com/devops-chris/cloudctx/releases).
+Download from [GitHub Releases](https://github.com/devops-chris/cloudctx/releases).
 
 ## Quick Start
 
 ```bash
-# First time: Configure AWS SSO
-cloudctx aws init
+# First time setup
+cloudctx aws init       # Configure SSO
+cloudctx aws login      # Authenticate
+cloudctx aws sync       # Fetch profiles
 
-# Login to AWS SSO
-cloudctx aws login
-
-# Sync profiles from SSO
-cloudctx aws sync
-
-# Select a profile (interactive)
-cloudctx aws
-
-# That's it! AWS CLI now uses the selected profile
-aws s3 ls
+# Daily use - just type cloudctx!
+cloudctx                # Interactive picker
+cloudctx prod           # Switch to profile matching "prod"
 ```
 
 ## Usage
 
+### Profile Switching
+
+```bash
+cloudctx                  # Interactive profile picker
+cloudctx <profile>        # Set specific profile
+cloudctx prod             # Fuzzy match (picker if multiple)
+cloudctx -c               # Show current profile
+cloudctx -l               # List all profiles
+```
+
 ### AWS Commands
 
 ```bash
-# Interactive profile picker (default)
-cloudctx aws
-
-# Set specific profile
-cloudctx aws my-account:admin
-
-# Set profile matching pattern
-cloudctx aws prod    # Shows picker if multiple matches
-
-# Show current profile
-cloudctx aws -c
-cloudctx aws --current
-
-# List all profiles
-cloudctx aws -l
-cloudctx aws --list
-
-# Login to AWS SSO
-cloudctx aws login
-
-# Sync profiles from SSO
-cloudctx aws sync
-
-# Show current identity (like aws sts get-caller-identity)
-cloudctx aws whoami
+cloudctx aws init         # Configure SSO settings
+cloudctx aws login        # SSO authentication
+cloudctx aws sync         # Sync profiles from SSO
+cloudctx aws whoami       # Show current identity
 cloudctx aws whoami --json
 ```
 
+## How It Works
+
+When you select a profile, cloudctx copies its settings to the `[default]` section in `~/.aws/config`. This is the same approach used by kubectx - no environment variables or shell integration needed.
+
 ## Configuration
 
-cloudctx uses `~/.config/cloudctx/config.yaml`:
+Configuration file: `~/.config/cloudctx/config.yaml`
 
 ```yaml
-# Default cloud provider
 default_cloud: aws
 
-# AWS settings
 aws:
   sso_start_url: https://your-org.awsapps.com/start
   sso_region: us-east-1
@@ -100,53 +86,30 @@ aws:
 
 ### Environment Variables
 
-All settings can be overridden with environment variables:
-
 | Variable | Description |
 |----------|-------------|
-| `CLOUDCTX_DEFAULT_CLOUD` | Default cloud provider (aws, azure) |
+| `CLOUDCTX_DEFAULT_CLOUD` | Default cloud provider |
 | `CLOUDCTX_AWS_SSO_START_URL` | AWS SSO portal URL |
 | `CLOUDCTX_AWS_SSO_REGION` | AWS SSO region |
-| `CLOUDCTX_AWS_DEFAULT_REGION` | Default AWS region for profiles |
-
-## How It Works
-
-### AWS Profile Sync
-
-When you run `cloudctx aws sync`:
-
-1. Reads your SSO access token from `~/.aws/sso/cache/`
-2. Calls AWS SSO APIs to list your accounts and roles
-3. Creates/updates profiles in `~/.aws/config`
-
-Profiles are named as `account-name:role-name` (lowercase, spaces replaced with dashes).
-
-### Profile Selection
-
-When you select a profile, cloudctx copies its settings to the `[default]` section in `~/.aws/config`. This is the same approach used by `kubectx` - no environment variables or shell integration needed.
-
-The AWS CLI automatically uses the `[default]` profile when no `AWS_PROFILE` is set.
-
-Note: If you have `AWS_PROFILE` set in your environment, it will override the default. cloudctx will warn you if this is the case.
+| `CLOUDCTX_AWS_DEFAULT_REGION` | Default region for profiles |
 
 ## Prerequisites
 
-- **AWS CLI v2** (required for SSO login) - [Install guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
-- Valid AWS SSO access
+- [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) (required for SSO login)
+- AWS SSO access
 
 ## Roadmap
 
+See [ROADMAP.md](ROADMAP.md) for planned features:
 - Azure subscription switching
 - GCP project switching
-- Profile groups and favorites
-- Integration with aws-vault
-- Team-based access patterns
+- Profile favorites and groups
+- aws-vault integration
 
 ## Contributing
 
-Contributions welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
+MIT License - see [LICENSE](LICENSE).

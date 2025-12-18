@@ -1,28 +1,25 @@
 # Contributing to cloudctx
 
-Thank you for your interest in contributing to cloudctx!
+Thank you for your interest in contributing!
 
 ## Development Setup
 
-1. Clone the repository:
 ```bash
+# Clone
 git clone https://github.com/devops-chris/cloudctx.git
 cd cloudctx
-```
 
-2. Install dependencies:
-```bash
+# Install dependencies
 go mod download
-```
 
-3. Build:
-```bash
+# Build
 go build -o cloudctx .
-```
 
-4. Run tests:
-```bash
+# Run tests
 go test ./...
+
+# Run linter
+golangci-lint run
 ```
 
 ## Making Changes
@@ -37,10 +34,21 @@ go test ./...
 
 ## Adding a New Cloud Provider
 
-1. Create a new package in `internal/` (e.g., `internal/azure/`)
-2. Implement the `provider.Provider` interface
-3. Add commands in `cmd/` (e.g., `cmd/azure.go`)
-4. Update documentation
+1. Create a new package: `internal/<provider>/`
+2. Implement the `provider.Provider` interface:
+   ```go
+   type Provider interface {
+       Name() string
+       Login() error
+       Sync() error
+       ListContexts() ([]Context, error)
+       SetContext(name string) error
+       CurrentContext() (*Context, error)
+       WhoAmI() (*Identity, error)
+   }
+   ```
+3. Add commands in `cmd/<provider>.go`
+4. Update documentation and examples
 
 ## Code Style
 
@@ -48,8 +56,16 @@ go test ./...
 - Use `gofmt` for formatting
 - Add comments for exported functions
 - Keep functions focused and small
+- Handle errors explicitly
+
+## Commit Messages
+
+Use clear, descriptive commit messages:
+- `feat: Add Azure subscription switching`
+- `fix: Handle missing ~/.aws directory`
+- `docs: Update installation instructions`
+- `refactor: Simplify profile sync logic`
 
 ## Questions?
 
-Open an issue for any questions or discussions.
-
+Open an issue for questions or discussions.
