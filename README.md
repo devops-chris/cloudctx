@@ -36,35 +36,37 @@ Download from [GitHub Releases](https://github.com/devops-chris/cloudctx/release
 
 ```bash
 # First time setup
-cloudctx aws init       # Configure SSO
-cloudctx aws login      # Authenticate
-cloudctx aws sync       # Fetch profiles
+ctx init                # Configure SSO
+ctx login               # Authenticate
+ctx sync                # Fetch profiles
 
-# Daily use - just type cloudctx!
-cloudctx                # Interactive picker
-cloudctx prod           # Switch to profile matching "prod"
+# Daily use
+ctx                     # Interactive picker
+ctx prod                # Switch to profile matching "prod"
 ```
+
+> **Note:** `ctx` is an alias for `cloudctx`, installed automatically via Homebrew.
 
 ## Usage
 
 ### Profile Switching
 
 ```bash
-cloudctx                  # Interactive profile picker
-cloudctx <profile>        # Set specific profile
-cloudctx prod             # Fuzzy match (picker if multiple)
-cloudctx -c               # Show current profile
-cloudctx -l               # List all profiles
+ctx                       # Interactive profile picker
+ctx <profile>             # Set specific profile
+ctx prod                  # Fuzzy match (picker if multiple)
+ctx -c                    # Show current profile
+ctx -l                    # List all profiles
 ```
 
-### AWS Commands
+### Setup & Auth
 
 ```bash
-cloudctx aws init         # Configure SSO settings
-cloudctx aws login        # SSO authentication
-cloudctx aws sync         # Sync profiles from SSO
-cloudctx aws whoami       # Show current identity
-cloudctx aws whoami --json
+ctx init                  # Configure SSO settings
+ctx login                 # SSO authentication
+ctx sync                  # Sync profiles from SSO
+ctx whoami                # Show current identity
+ctx whoami --json
 ```
 
 ## How It Works

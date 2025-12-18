@@ -134,10 +134,12 @@ func (p *Provider) Sync() error {
 		awsCfg = ini.Empty()
 	}
 
-	// Remove old generated profiles (those with our marker)
+	// Remove old generated profiles (those with our marker OR all profile sections for clean slate)
 	for _, section := range awsCfg.Sections() {
-		if section.HasKey("# cloudctx_managed") {
-			awsCfg.DeleteSection(section.Name())
+		name := section.Name()
+		// Delete all profile sections - cloudctx owns them all
+		if strings.HasPrefix(name, "profile ") {
+			awsCfg.DeleteSection(name)
 		}
 	}
 
@@ -163,7 +165,7 @@ func (p *Provider) Sync() error {
 				continue
 			}
 
-			_, _ = section.NewKey("# cloudctx_managed", "true")
+			// No marker needed - cloudctx manages all profiles
 			_, _ = section.NewKey("sso_session", "cloudctx-cli")
 			_, _ = section.NewKey("sso_account_id", aws.ToString(account.AccountId))
 			_, _ = section.NewKey("sso_role_name", aws.ToString(role.RoleName))
@@ -242,9 +244,6 @@ func (p *Provider) SetContext(name string) error {
 
 	// Copy all settings from source profile to default
 	for _, key := range sourceSection.Keys() {
-		if key.Name() == "# cloudctx_managed" {
-			continue // Don't copy our internal marker
-		}
 		_, _ = defaultSection.NewKey(key.Name(), key.Value())
 	}
 

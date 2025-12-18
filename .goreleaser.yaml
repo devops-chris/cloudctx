@@ -64,6 +64,7 @@ brews:
     skip_upload: auto
     install: |
       bin.install "cloudctx"
+      bin.install_symlink "cloudctx" => "ctx"
     test: |
       system "#{bin}/cloudctx", "version"
 
