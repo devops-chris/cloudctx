@@ -40,6 +40,11 @@ func (p *Provider) Name() string {
 
 // Login performs AWS SSO login
 func (p *Provider) Login() error {
+	// Check if AWS CLI is installed
+	if _, err := exec.LookPath("aws"); err != nil {
+		return fmt.Errorf("AWS CLI not found. Please install AWS CLI v2: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html")
+	}
+
 	if p.ssoStartURL == "" {
 		return fmt.Errorf("SSO start URL not configured. Run 'cloudctx aws init' first")
 	}
@@ -60,6 +65,13 @@ func (p *Provider) Login() error {
 // ensureSSOSession creates an SSO session in ~/.aws/config
 func (p *Provider) ensureSSOSession() error {
 	awsConfigPath := p.awsConfigPath()
+	
+	// Ensure ~/.aws directory exists
+	awsDir := filepath.Dir(awsConfigPath)
+	if err := os.MkdirAll(awsDir, 0700); err != nil {
+		return fmt.Errorf("failed to create AWS config directory: %w", err)
+	}
+
 	awsCfg, err := ini.Load(awsConfigPath)
 	if err != nil {
 		awsCfg = ini.Empty()

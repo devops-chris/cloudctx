@@ -131,7 +131,7 @@ Note: If you have `AWS_PROFILE` set in your environment, it will override the de
 
 ## Prerequisites
 
-- AWS CLI v2 (for SSO login flow)
+- **AWS CLI v2** (required for SSO login) - [Install guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
 - Valid AWS SSO access
 
 ## Roadmap
