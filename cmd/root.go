@@ -81,6 +81,23 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: ~/.config/cloudctx/config.yaml)")
 	rootCmd.Flags().BoolVarP(&rootShowCurrent, "current", "c", false, "show current profile")
 	rootCmd.Flags().BoolVarP(&rootShowList, "list", "l", false, "list all profiles")
+
+	// Add shortcuts for common commands when using default cloud
+	rootCmd.AddCommand(createShortcut("init", "Initialize cloud configuration", awsInitCmd))
+	rootCmd.AddCommand(createShortcut("login", "Login to cloud provider", awsLoginCmd))
+	rootCmd.AddCommand(createShortcut("sync", "Sync profiles from cloud", awsSyncCmd))
+	rootCmd.AddCommand(createShortcut("whoami", "Show current identity", awsWhoamiCmd))
+}
+
+// createShortcut creates a root-level shortcut to a cloud-specific command
+func createShortcut(name, short string, target *cobra.Command) *cobra.Command {
+	return &cobra.Command{
+		Use:   name,
+		Short: short + " (uses default cloud)",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return target.RunE(cmd, args)
+		},
+	}
 }
 
 func initConfig() {

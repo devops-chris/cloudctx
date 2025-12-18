@@ -60,6 +60,8 @@ brews:
     homepage: "https://github.com/devops-chris/cloudctx"
     description: "A unified CLI for switching between cloud contexts"
     license: "MIT"
+    # Skip Homebrew for pre-releases (alpha, beta, rc)
+    skip_upload: auto
     install: |
       bin.install "cloudctx"
     test: |

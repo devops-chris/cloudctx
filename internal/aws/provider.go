@@ -155,6 +155,9 @@ func (p *Provider) Sync() error {
 			profileName := p.buildProfileName(aws.ToString(account.AccountName), aws.ToString(role.RoleName))
 			sectionName := fmt.Sprintf("profile %s", profileName)
 
+			// Delete existing section first to avoid duplicates
+			awsCfg.DeleteSection(sectionName)
+
 			section, err := awsCfg.NewSection(sectionName)
 			if err != nil {
 				continue
@@ -212,6 +215,11 @@ func (p *Provider) ListContexts() ([]provider.Context, error) {
 
 // SetContext sets the active AWS profile by updating [default] in ~/.aws/config
 func (p *Provider) SetContext(name string) error {
+	// Ensure SSO session exists
+	if err := p.ensureSSOSession(); err != nil {
+		return fmt.Errorf("failed to configure SSO session: %w", err)
+	}
+
 	awsConfigPath := p.awsConfigPath()
 	awsCfg, err := ini.Load(awsConfigPath)
 	if err != nil {
@@ -225,14 +233,11 @@ func (p *Provider) SetContext(name string) error {
 		return fmt.Errorf("profile '%s' not found", name)
 	}
 
-	// Get or create the default section
-	defaultSection := awsCfg.Section("default")
-
-	// Clear existing default settings (except our marker)
-	for _, key := range defaultSection.Keys() {
-		if key.Name() != "# cloudctx_current" {
-			defaultSection.DeleteKey(key.Name())
-		}
+	// Delete and recreate default section to avoid stale keys
+	awsCfg.DeleteSection("default")
+	defaultSection, err := awsCfg.NewSection("default")
+	if err != nil {
+		return fmt.Errorf("failed to create default section: %w", err)
 	}
 
 	// Copy all settings from source profile to default
@@ -244,7 +249,6 @@ func (p *Provider) SetContext(name string) error {
 	}
 
 	// Mark which profile is current
-	defaultSection.DeleteKey("# cloudctx_current")
 	_, _ = defaultSection.NewKey("# cloudctx_current", name)
 
 	// Save
