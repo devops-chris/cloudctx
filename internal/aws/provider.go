@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sso"
+	ssotypes "github.com/aws/aws-sdk-go-v2/service/sso/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/devops-chris/cloudctx/internal/provider"
 	"gopkg.in/ini.v1"
@@ -118,12 +119,22 @@ func (p *Provider) Sync() error {
 	}
 	ssoClient := sso.NewFromConfig(cfg)
 
-	// List accounts
-	accountsOutput, err := ssoClient.ListAccounts(ctx, &sso.ListAccountsInput{
-		AccessToken: aws.String(accessToken),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to list SSO accounts: %w", err)
+	// List ALL accounts (with pagination)
+	var allAccounts []ssotypes.AccountInfo
+	var accountsNextToken *string
+	for {
+		accountsOutput, err := ssoClient.ListAccounts(ctx, &sso.ListAccountsInput{
+			AccessToken: aws.String(accessToken),
+			NextToken:   accountsNextToken,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to list SSO accounts: %w", err)
+		}
+		allAccounts = append(allAccounts, accountsOutput.AccountList...)
+		if accountsOutput.NextToken == nil {
+			break
+		}
+		accountsNextToken = accountsOutput.NextToken
 	}
 
 	// Load existing AWS config
@@ -134,26 +145,37 @@ func (p *Provider) Sync() error {
 		awsCfg = ini.Empty()
 	}
 
-	// Remove old generated profiles (those with our marker OR all profile sections for clean slate)
+	// Remove only cloudctx-managed profiles (preserve manually created ones)
 	for _, section := range awsCfg.Sections() {
 		name := section.Name()
-		// Delete all profile sections - cloudctx owns them all
-		if strings.HasPrefix(name, "profile ") {
+		if strings.HasPrefix(name, "profile ") && section.HasKey("cloudctx_managed") {
 			awsCfg.DeleteSection(name)
 		}
 	}
 
 	// Generate profiles for each account/role (using sso_session reference)
-	for _, account := range accountsOutput.AccountList {
-		rolesOutput, err := ssoClient.ListAccountRoles(ctx, &sso.ListAccountRolesInput{
-			AccessToken: aws.String(accessToken),
-			AccountId:   account.AccountId,
-		})
-		if err != nil {
-			continue // Skip accounts we can't list roles for
+	profileCount := 0
+	for _, account := range allAccounts {
+		// List ALL roles for this account (with pagination)
+		var allRoles []ssotypes.RoleInfo
+		var rolesNextToken *string
+		for {
+			rolesOutput, err := ssoClient.ListAccountRoles(ctx, &sso.ListAccountRolesInput{
+				AccessToken: aws.String(accessToken),
+				AccountId:   account.AccountId,
+				NextToken:   rolesNextToken,
+			})
+			if err != nil {
+				break // Skip accounts we can't list roles for
+			}
+			allRoles = append(allRoles, rolesOutput.RoleList...)
+			if rolesOutput.NextToken == nil {
+				break
+			}
+			rolesNextToken = rolesOutput.NextToken
 		}
 
-		for _, role := range rolesOutput.RoleList {
+		for _, role := range allRoles {
 			profileName := p.buildProfileName(aws.ToString(account.AccountName), aws.ToString(role.RoleName))
 			sectionName := fmt.Sprintf("profile %s", profileName)
 
@@ -165,12 +187,13 @@ func (p *Provider) Sync() error {
 				continue
 			}
 
-			// No marker needed - cloudctx manages all profiles
+			_, _ = section.NewKey("cloudctx_managed", "true")
 			_, _ = section.NewKey("sso_session", "cloudctx-cli")
 			_, _ = section.NewKey("sso_account_id", aws.ToString(account.AccountId))
 			_, _ = section.NewKey("sso_role_name", aws.ToString(role.RoleName))
 			_, _ = section.NewKey("region", p.defaultRegion)
 			_, _ = section.NewKey("output", "json")
+			profileCount++
 		}
 	}
 
@@ -178,32 +201,58 @@ func (p *Provider) Sync() error {
 	return awsCfg.SaveTo(awsConfigPath)
 }
 
-// ListContexts returns all AWS profiles
+// ListContexts returns all AWS profiles from both ~/.aws/config and ~/.aws/credentials
 func (p *Provider) ListContexts() ([]provider.Context, error) {
+	currentProfile := os.Getenv("AWS_PROFILE")
+	profileMap := make(map[string]provider.Context) // Use map to dedupe
+
+	// Read from ~/.aws/config (profiles use [profile name] format)
 	awsConfigPath := p.awsConfigPath()
-	awsCfg, err := ini.Load(awsConfigPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load AWS config: %w", err)
+	if awsCfg, err := ini.Load(awsConfigPath); err == nil {
+		for _, section := range awsCfg.Sections() {
+			name := section.Name()
+			if !strings.HasPrefix(name, "profile ") {
+				continue
+			}
+
+			profileName := strings.TrimPrefix(name, "profile ")
+			profileMap[profileName] = provider.Context{
+				Name:      profileName,
+				Cloud:     "aws",
+				AccountID: section.Key("sso_account_id").String(),
+				Role:      section.Key("sso_role_name").String(),
+				Region:    section.Key("region").String(),
+				Active:    profileName == currentProfile,
+				Managed:   section.HasKey("cloudctx_managed"),
+			}
+		}
 	}
 
-	currentProfile := os.Getenv("AWS_PROFILE")
+	// Read from ~/.aws/credentials (profiles use [name] format, no "profile " prefix)
+	awsCredsPath := p.awsCredentialsPath()
+	if awsCreds, err := ini.Load(awsCredsPath); err == nil {
+		for _, section := range awsCreds.Sections() {
+			name := section.Name()
+			// Skip DEFAULT section and any already in config
+			if name == "DEFAULT" || name == "default" {
+				continue
+			}
+			// Only add if not already in config (config takes precedence)
+			if _, exists := profileMap[name]; !exists {
+				profileMap[name] = provider.Context{
+					Name:    name,
+					Cloud:   "aws",
+					Region:  section.Key("region").String(),
+					Active:  name == currentProfile,
+					Managed: false, // Credentials file profiles are always manual
+				}
+			}
+		}
+	}
+
+	// Convert map to slice
 	var contexts []provider.Context
-
-	for _, section := range awsCfg.Sections() {
-		name := section.Name()
-		if !strings.HasPrefix(name, "profile ") {
-			continue
-		}
-
-		profileName := strings.TrimPrefix(name, "profile ")
-		ctx := provider.Context{
-			Name:      profileName,
-			Cloud:     "aws",
-			AccountID: section.Key("sso_account_id").String(),
-			Role:      section.Key("sso_role_name").String(),
-			Region:    section.Key("region").String(),
-			Active:    profileName == currentProfile,
-		}
+	for _, ctx := range profileMap {
 		contexts = append(contexts, ctx)
 	}
 
@@ -216,41 +265,94 @@ func (p *Provider) ListContexts() ([]provider.Context, error) {
 }
 
 // SetContext sets the active AWS profile by updating [default] in ~/.aws/config
+// For credentials-file profiles, also updates [default] in ~/.aws/credentials
 func (p *Provider) SetContext(name string) error {
-	// Ensure SSO session exists
-	if err := p.ensureSSOSession(); err != nil {
-		return fmt.Errorf("failed to configure SSO session: %w", err)
-	}
-
 	awsConfigPath := p.awsConfigPath()
 	awsCfg, err := ini.Load(awsConfigPath)
 	if err != nil {
 		return fmt.Errorf("failed to load AWS config: %w", err)
 	}
 
-	// Find the source profile
+	// Check if profile exists in config file
 	sourceSectionName := fmt.Sprintf("profile %s", name)
 	sourceSection := awsCfg.Section(sourceSectionName)
-	if sourceSection == nil {
-		return fmt.Errorf("profile '%s' not found", name)
+	foundInConfig := sourceSection != nil && len(sourceSection.Keys()) > 0
+
+	// Check if profile exists in credentials file
+	var foundInCreds bool
+	var credsSection *ini.Section
+	awsCredsPath := p.awsCredentialsPath()
+	awsCreds, credsErr := ini.Load(awsCredsPath)
+	if credsErr == nil {
+		credsSection = awsCreds.Section(name)
+		foundInCreds = credsSection != nil && len(credsSection.Keys()) > 0
 	}
 
-	// Delete and recreate default section to avoid stale keys
+	if !foundInConfig && !foundInCreds {
+		return fmt.Errorf("profile '%s' not found in config or credentials", name)
+	}
+
+	// Delete and recreate default section in config to avoid stale keys
 	awsCfg.DeleteSection("default")
-	defaultSection, err := awsCfg.NewSection("default")
+	defaultConfigSection, err := awsCfg.NewSection("default")
 	if err != nil {
 		return fmt.Errorf("failed to create default section: %w", err)
 	}
 
-	// Copy all settings from source profile to default
-	for _, key := range sourceSection.Keys() {
-		_, _ = defaultSection.NewKey(key.Name(), key.Value())
+	if foundInConfig {
+		// Ensure SSO session exists (only needed for SSO profiles)
+		if err := p.ensureSSOSession(); err != nil {
+			return fmt.Errorf("failed to configure SSO session: %w", err)
+		}
+
+		// Copy all settings from config profile to default
+		for _, key := range sourceSection.Keys() {
+			// Skip our internal marker
+			if key.Name() == "cloudctx_managed" {
+				continue
+			}
+			_, _ = defaultConfigSection.NewKey(key.Name(), key.Value())
+		}
+
+		// Clear any credentials from credentials file default (avoid conflict)
+		if awsCreds != nil {
+			awsCreds.DeleteSection("default")
+			if defaultCredSection, err := awsCreds.NewSection("default"); err == nil {
+				_, _ = defaultCredSection.NewKey("# cloudctx_managed", "true")
+				_ = awsCreds.SaveTo(awsCredsPath)
+			}
+		}
+	} else {
+		// For credentials-file profiles, copy credentials to [default] in credentials file
+		if awsCreds == nil {
+			return fmt.Errorf("cannot load credentials file")
+		}
+
+		// Update credentials file [default] section
+		awsCreds.DeleteSection("default")
+		defaultCredSection, err := awsCreds.NewSection("default")
+		if err != nil {
+			return fmt.Errorf("failed to create default credentials section: %w", err)
+		}
+
+		// Copy credentials from source profile to default
+		for _, key := range credsSection.Keys() {
+			_, _ = defaultCredSection.NewKey(key.Name(), key.Value())
+		}
+		_, _ = defaultCredSection.NewKey("# cloudctx_source", name)
+
+		if err := awsCreds.SaveTo(awsCredsPath); err != nil {
+			return fmt.Errorf("failed to save credentials: %w", err)
+		}
+
+		// Set region in config file default
+		_, _ = defaultConfigSection.NewKey("region", p.defaultRegion)
 	}
 
-	// Mark which profile is current
-	_, _ = defaultSection.NewKey("# cloudctx_current", name)
+	// Mark which profile is current in config
+	_, _ = defaultConfigSection.NewKey("# cloudctx_current", name)
 
-	// Save
+	// Save config
 	if err := awsCfg.SaveTo(awsConfigPath); err != nil {
 		return fmt.Errorf("failed to save AWS config: %w", err)
 	}
@@ -346,6 +448,11 @@ func (p *Provider) WhoAmI() (*provider.Identity, error) {
 func (p *Provider) awsConfigPath() string {
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".aws", "config")
+}
+
+func (p *Provider) awsCredentialsPath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".aws", "credentials")
 }
 
 func (p *Provider) buildProfileName(accountName, roleName string) string {

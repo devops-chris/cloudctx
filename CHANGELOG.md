@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7] - 2024-12-18
+
+### Fixed
+- **SSO sync now fetches ALL accounts** - Fixed pagination bug that only returned the first ~20 accounts
+
+### Added
+- **Read profiles from both `~/.aws/config` AND `~/.aws/credentials`** - Manual profiles in credentials file now appear
+- **Switch to any profile type** - SSO and credentials-based profiles both work seamlessly
+- Source indicator (`[sso]` or `[manual]`) in profile list and picker
+- `--sso` flag to show only SSO-synced profiles
+- `--manual` flag to show only manually created profiles
+- Manual profiles are now preserved during sync and displayed alongside SSO profiles
+
 ## [0.1.6] - 2024-12-18
 
 ### Added
@@ -79,7 +92,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cross-platform support (macOS, Linux, Windows)
 - Homebrew installation support
 
-[Unreleased]: https://github.com/devops-chris/cloudctx/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/devops-chris/cloudctx/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/devops-chris/cloudctx/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/devops-chris/cloudctx/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/devops-chris/cloudctx/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/devops-chris/cloudctx/compare/v0.1.3...v0.1.4

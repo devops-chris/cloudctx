@@ -31,6 +31,8 @@ Examples:
 var (
 	awsShowCurrent bool
 	awsShowList    bool
+	awsSSOOnly     bool
+	awsManualOnly  bool
 )
 
 func init() {
@@ -38,6 +40,8 @@ func init() {
 
 	awsCmd.Flags().BoolVarP(&awsShowCurrent, "current", "c", false, "show current profile")
 	awsCmd.Flags().BoolVarP(&awsShowList, "list", "l", false, "list all profiles")
+	awsCmd.Flags().BoolVar(&awsSSOOnly, "sso", false, "show only SSO-synced profiles")
+	awsCmd.Flags().BoolVar(&awsManualOnly, "manual", false, "show only manually created profiles")
 }
 
 func runAWS(cmd *cobra.Command, args []string) error {
@@ -78,15 +82,40 @@ func showCurrentAWS(p *aws.Provider) error {
 	return nil
 }
 
+// filterContexts applies the --sso and --manual flags
+func filterContexts(contexts []provider.Context) []provider.Context {
+	if !awsSSOOnly && !awsManualOnly {
+		return contexts // No filter
+	}
+
+	var filtered []provider.Context
+	for _, ctx := range contexts {
+		if awsSSOOnly && ctx.Managed {
+			filtered = append(filtered, ctx)
+		} else if awsManualOnly && !ctx.Managed {
+			filtered = append(filtered, ctx)
+		}
+	}
+	return filtered
+}
+
 func listAWS(p *aws.Provider) error {
 	contexts, err := p.ListContexts()
 	if err != nil {
 		return err
 	}
 
+	contexts = filterContexts(contexts)
+
 	if len(contexts) == 0 {
 		pterm.Warning.Println("No AWS profiles found")
-		pterm.FgGray.Println("Run 'cloudctx aws sync' to fetch profiles from SSO")
+		if awsSSOOnly {
+			pterm.FgGray.Println("Run 'cloudctx aws sync' to fetch profiles from SSO")
+		} else if awsManualOnly {
+			pterm.FgGray.Println("No manually created profiles found")
+		} else {
+			pterm.FgGray.Println("Run 'cloudctx aws sync' to fetch profiles from SSO")
+		}
 		return nil
 	}
 
@@ -96,7 +125,7 @@ func listAWS(p *aws.Provider) error {
 		Println("AWS Profiles")
 
 	tableData := pterm.TableData{
-		{"", "Profile", "Account ID", "Role", "Region"},
+		{"", "Profile", "Account ID", "Role", "Region", "Source"},
 	}
 
 	for _, ctx := range contexts {
@@ -106,17 +135,29 @@ func listAWS(p *aws.Provider) error {
 			marker = "*"
 			name = pterm.FgGreen.Sprint(ctx.Name)
 		}
+		source := pterm.FgYellow.Sprint("manual")
+		if ctx.Managed {
+			source = pterm.FgCyan.Sprint("sso")
+		}
 		tableData = append(tableData, []string{
 			marker,
 			name,
 			ctx.AccountID,
 			ctx.Role,
 			ctx.Region,
+			source,
 		})
 	}
 
 	_ = pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
-	fmt.Printf("\nTotal: %d profile(s)\n\n", len(contexts))
+
+	filterNote := ""
+	if awsSSOOnly {
+		filterNote = " (sso only)"
+	} else if awsManualOnly {
+		filterNote = " (manual only)"
+	}
+	fmt.Printf("\nTotal: %d profile(s)%s\n\n", len(contexts), filterNote)
 
 	return nil
 }
@@ -160,9 +201,17 @@ func interactiveAWS(p *aws.Provider) error {
 		return err
 	}
 
+	contexts = filterContexts(contexts)
+
 	if len(contexts) == 0 {
 		pterm.Warning.Println("No AWS profiles found")
-		pterm.FgGray.Println("Run 'cloudctx aws sync' to fetch profiles from SSO")
+		if awsSSOOnly {
+			pterm.FgGray.Println("Run 'cloudctx aws sync' to fetch profiles from SSO")
+		} else if awsManualOnly {
+			pterm.FgGray.Println("No manually created profiles found")
+		} else {
+			pterm.FgGray.Println("Run 'cloudctx aws sync' to fetch profiles from SSO")
+		}
 		return nil
 	}
 
@@ -177,13 +226,17 @@ func pickFromMatches(p *aws.Provider, contexts []provider.Context) error {
 		currentName = current.Name
 	}
 
-	// Build options
+	// Build options with source indicator
 	options := make([]string, len(contexts))
 	for i, ctx := range contexts {
+		source := "[manual]"
+		if ctx.Managed {
+			source = "[sso]"
+		}
 		if ctx.Name == currentName {
-			options[i] = fmt.Sprintf("* %s", ctx.Name)
+			options[i] = fmt.Sprintf("* %-50s %s", ctx.Name, source)
 		} else {
-			options[i] = fmt.Sprintf("  %s", ctx.Name)
+			options[i] = fmt.Sprintf("  %-50s %s", ctx.Name, source)
 		}
 	}
 
@@ -202,9 +255,13 @@ func pickFromMatches(p *aws.Provider, contexts []provider.Context) error {
 		return nil // User cancelled
 	}
 
-	// Extract profile name (remove marker)
+	// Extract profile name (remove marker and source tag)
 	profileName := strings.TrimPrefix(selected, "* ")
 	profileName = strings.TrimPrefix(profileName, "  ")
+	// Remove the source tag and trailing whitespace
+	if idx := strings.Index(profileName, " ["); idx != -1 {
+		profileName = strings.TrimSpace(profileName[:idx])
+	}
 
 	return selectProfile(p, profileName)
 }

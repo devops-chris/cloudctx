@@ -10,6 +10,7 @@ type Context struct {
 	Role        string // AWS role, Azure role, etc.
 	Region      string
 	Active      bool
+	Managed     bool   // true if created/managed by cloudctx (SSO sync)
 }
 
 // Identity represents the current authenticated identity

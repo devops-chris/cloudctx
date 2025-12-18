@@ -57,7 +57,12 @@ ctx <profile>             # Set specific profile
 ctx prod                  # Fuzzy match (picker if multiple)
 ctx -c                    # Show current profile
 ctx -l                    # List all profiles
+ctx -l --sso              # List only SSO-synced profiles
+ctx -l --manual           # List only manually created profiles
+ctx --sso                 # Interactive picker (SSO profiles only)
 ```
+
+The list and picker show both SSO-synced and manually created profiles. Each profile is tagged with its source (`[sso]` or `[manual]`) so you can tell them apart.
 
 ### Setup & Auth
 
