@@ -1,0 +1,421 @@
+package aws
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/sso"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/devops-chris/cloudctx/internal/provider"
+	"gopkg.in/ini.v1"
+)
+
+// Provider implements the cloud provider interface for AWS
+type Provider struct {
+	ssoStartURL   string
+	ssoRegion     string
+	defaultRegion string
+}
+
+// NewProvider creates a new AWS provider
+func NewProvider(ssoStartURL, ssoRegion, defaultRegion string) *Provider {
+	return &Provider{
+		ssoStartURL:   ssoStartURL,
+		ssoRegion:     ssoRegion,
+		defaultRegion: defaultRegion,
+	}
+}
+
+// Name returns the provider name
+func (p *Provider) Name() string {
+	return "aws"
+}
+
+// Login performs AWS SSO login
+func (p *Provider) Login() error {
+	if p.ssoStartURL == "" {
+		return fmt.Errorf("SSO start URL not configured. Run 'cloudctx aws init' first")
+	}
+
+	// Ensure we have an SSO session configured
+	if err := p.ensureSSOSession(); err != nil {
+		return fmt.Errorf("failed to configure SSO session: %w", err)
+	}
+
+	// Use AWS CLI for SSO login with our session
+	cmd := exec.Command("aws", "sso", "login", "--sso-session", "cloudctx-cli")
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// ensureSSOSession creates an SSO session in ~/.aws/config
+func (p *Provider) ensureSSOSession() error {
+	awsConfigPath := p.awsConfigPath()
+	awsCfg, err := ini.Load(awsConfigPath)
+	if err != nil {
+		awsCfg = ini.Empty()
+	}
+
+	sectionName := "sso-session cloudctx-cli"
+	section := awsCfg.Section(sectionName)
+
+	// Clear and set SSO session settings
+	for _, key := range section.Keys() {
+		section.DeleteKey(key.Name())
+	}
+
+	section.NewKey("sso_start_url", p.ssoStartURL)
+	section.NewKey("sso_region", p.ssoRegion)
+	section.NewKey("sso_registration_scopes", "sso:account:access")
+
+	return awsCfg.SaveTo(awsConfigPath)
+}
+
+// Sync synchronizes profiles from AWS SSO
+func (p *Provider) Sync() error {
+	if p.ssoStartURL == "" {
+		return fmt.Errorf("SSO start URL not configured. Run 'cloudctx aws init' first")
+	}
+
+	ctx := context.Background()
+
+	// Get SSO access token from cache
+	accessToken, err := p.getAccessToken()
+	if err != nil {
+		return fmt.Errorf("failed to get SSO access token (try 'cloudctx aws login' first): %w", err)
+	}
+
+	// Create SSO client
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(p.ssoRegion))
+	if err != nil {
+		return fmt.Errorf("failed to load AWS config: %w", err)
+	}
+	ssoClient := sso.NewFromConfig(cfg)
+
+	// List accounts
+	accountsOutput, err := ssoClient.ListAccounts(ctx, &sso.ListAccountsInput{
+		AccessToken: aws.String(accessToken),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list SSO accounts: %w", err)
+	}
+
+	// Load existing AWS config
+	awsConfigPath := p.awsConfigPath()
+	awsCfg, err := ini.Load(awsConfigPath)
+	if err != nil {
+		// Create new if doesn't exist
+		awsCfg = ini.Empty()
+	}
+
+	// Remove old generated profiles (those with our marker)
+	for _, section := range awsCfg.Sections() {
+		if section.HasKey("# cloudctx_managed") {
+			awsCfg.DeleteSection(section.Name())
+		}
+	}
+
+	// Generate profiles for each account/role
+	for _, account := range accountsOutput.AccountList {
+		rolesOutput, err := ssoClient.ListAccountRoles(ctx, &sso.ListAccountRolesInput{
+			AccessToken: aws.String(accessToken),
+			AccountId:   account.AccountId,
+		})
+		if err != nil {
+			continue // Skip accounts we can't list roles for
+		}
+
+		for _, role := range rolesOutput.RoleList {
+			profileName := p.buildProfileName(aws.ToString(account.AccountName), aws.ToString(role.RoleName))
+			sectionName := fmt.Sprintf("profile %s", profileName)
+
+			section, err := awsCfg.NewSection(sectionName)
+			if err != nil {
+				continue
+			}
+
+			section.NewKey("# cloudctx_managed", "true")
+			section.NewKey("sso_start_url", p.ssoStartURL)
+			section.NewKey("sso_region", p.ssoRegion)
+			section.NewKey("sso_account_id", aws.ToString(account.AccountId))
+			section.NewKey("sso_role_name", aws.ToString(role.RoleName))
+			section.NewKey("region", p.defaultRegion)
+			section.NewKey("output", "json")
+		}
+	}
+
+	// Save config
+	return awsCfg.SaveTo(awsConfigPath)
+}
+
+// ListContexts returns all AWS profiles
+func (p *Provider) ListContexts() ([]provider.Context, error) {
+	awsConfigPath := p.awsConfigPath()
+	awsCfg, err := ini.Load(awsConfigPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load AWS config: %w", err)
+	}
+
+	currentProfile := os.Getenv("AWS_PROFILE")
+	var contexts []provider.Context
+
+	for _, section := range awsCfg.Sections() {
+		name := section.Name()
+		if !strings.HasPrefix(name, "profile ") {
+			continue
+		}
+
+		profileName := strings.TrimPrefix(name, "profile ")
+		ctx := provider.Context{
+			Name:      profileName,
+			Cloud:     "aws",
+			AccountID: section.Key("sso_account_id").String(),
+			Role:      section.Key("sso_role_name").String(),
+			Region:    section.Key("region").String(),
+			Active:    profileName == currentProfile,
+		}
+		contexts = append(contexts, ctx)
+	}
+
+	// Sort by name
+	sort.Slice(contexts, func(i, j int) bool {
+		return contexts[i].Name < contexts[j].Name
+	})
+
+	return contexts, nil
+}
+
+// SetContext sets the active AWS profile by updating [default] in ~/.aws/config
+func (p *Provider) SetContext(name string) error {
+	awsConfigPath := p.awsConfigPath()
+	awsCfg, err := ini.Load(awsConfigPath)
+	if err != nil {
+		return fmt.Errorf("failed to load AWS config: %w", err)
+	}
+
+	// Find the source profile
+	sourceSectionName := fmt.Sprintf("profile %s", name)
+	sourceSection := awsCfg.Section(sourceSectionName)
+	if sourceSection == nil {
+		return fmt.Errorf("profile '%s' not found", name)
+	}
+
+	// Get or create the default section
+	defaultSection := awsCfg.Section("default")
+
+	// Clear existing default settings (except our marker)
+	for _, key := range defaultSection.Keys() {
+		if key.Name() != "# cloudctx_current" {
+			defaultSection.DeleteKey(key.Name())
+		}
+	}
+
+	// Copy all settings from source profile to default
+	for _, key := range sourceSection.Keys() {
+		if key.Name() == "# cloudctx_managed" {
+			continue // Don't copy our internal marker
+		}
+		defaultSection.NewKey(key.Name(), key.Value())
+	}
+
+	// Mark which profile is current
+	defaultSection.DeleteKey("# cloudctx_current")
+	defaultSection.NewKey("# cloudctx_current", name)
+
+	// Save
+	if err := awsCfg.SaveTo(awsConfigPath); err != nil {
+		return fmt.Errorf("failed to save AWS config: %w", err)
+	}
+
+	// Also save to our state file for quick lookup
+	stateDir := p.stateDir()
+	if err := os.MkdirAll(stateDir, 0755); err == nil {
+		_ = os.WriteFile(filepath.Join(stateDir, "aws_current"), []byte(name), 0644)
+	}
+
+	return nil
+}
+
+func (p *Provider) stateDir() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".config", "cloudctx")
+}
+
+// CurrentContext returns the current AWS profile
+func (p *Provider) CurrentContext() (*provider.Context, error) {
+	// First check AWS_PROFILE env var (takes precedence)
+	profile := os.Getenv("AWS_PROFILE")
+
+	// If not set, check our state file
+	if profile == "" {
+		stateFile := filepath.Join(p.stateDir(), "aws_current")
+		if data, err := os.ReadFile(stateFile); err == nil {
+			profile = strings.TrimSpace(string(data))
+		}
+	}
+
+	// If still not set, check the marker in [default] section
+	if profile == "" {
+		awsConfigPath := p.awsConfigPath()
+		if awsCfg, err := ini.Load(awsConfigPath); err == nil {
+			defaultSection := awsCfg.Section("default")
+			if key := defaultSection.Key("# cloudctx_current"); key != nil {
+				profile = key.Value()
+			}
+		}
+	}
+
+	if profile == "" {
+		return nil, nil
+	}
+
+	contexts, err := p.ListContexts()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, ctx := range contexts {
+		if ctx.Name == profile {
+			ctx.Active = true
+			return &ctx, nil
+		}
+	}
+
+	// Profile exists but not in our list
+	return &provider.Context{
+		Name:   profile,
+		Cloud:  "aws",
+		Active: true,
+	}, nil
+}
+
+// WhoAmI returns the current AWS identity
+func (p *Provider) WhoAmI() (*provider.Identity, error) {
+	ctx := context.Background()
+
+	cfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load AWS config: %w", err)
+	}
+
+	stsClient := sts.NewFromConfig(cfg)
+	output, err := stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get caller identity: %w", err)
+	}
+
+	return &provider.Identity{
+		Cloud:     "aws",
+		AccountID: aws.ToString(output.Account),
+		UserID:    aws.ToString(output.UserId),
+		ARN:       aws.ToString(output.Arn),
+		Region:    cfg.Region,
+	}, nil
+}
+
+// Helper functions
+
+func (p *Provider) awsConfigPath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".aws", "config")
+}
+
+func (p *Provider) buildProfileName(accountName, roleName string) string {
+	// Lowercase and combine: "My Account:AdminRole"
+	name := strings.ToLower(accountName)
+	name = strings.ReplaceAll(name, " ", "-")
+	role := strings.ToLower(roleName)
+	return fmt.Sprintf("%s:%s", name, role)
+}
+
+func (p *Provider) getAccessToken() (string, error) {
+	home, _ := os.UserHomeDir()
+	cacheDir := filepath.Join(home, ".aws", "sso", "cache")
+
+	entries, err := os.ReadDir(cacheDir)
+	if err != nil {
+		return "", fmt.Errorf("SSO cache not found. Run 'cloudctx aws login' first")
+	}
+
+	// Find the most recent cache file with accessToken
+	var newestToken string
+	var newestTime int64
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+
+		filePath := filepath.Join(cacheDir, entry.Name())
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			continue
+		}
+
+		content := string(data)
+
+		// Look for accessToken in the JSON
+		if !strings.Contains(content, `"accessToken"`) {
+			continue
+		}
+
+		// Extract token using simple string search
+		// Format is: "accessToken": "value" or "accessToken":"value"
+		marker := `"accessToken"`
+		tokenStart := strings.Index(content, marker)
+		if tokenStart == -1 {
+			continue
+		}
+
+		// Move past the marker
+		afterMarker := content[tokenStart+len(marker):]
+
+		// Find the colon and skip any whitespace
+		colonPos := strings.Index(afterMarker, ":")
+		if colonPos == -1 {
+			continue
+		}
+
+		// Move past colon and whitespace to find the opening quote
+		afterColon := strings.TrimLeft(afterMarker[colonPos+1:], " \t\n")
+		if len(afterColon) == 0 || afterColon[0] != '"' {
+			continue
+		}
+
+		// Find the closing quote
+		valueStart := 1 // skip opening quote
+		valueEnd := strings.Index(afterColon[valueStart:], `"`)
+		if valueEnd <= 0 {
+			continue
+		}
+
+		token := afterColon[valueStart : valueStart+valueEnd]
+
+		// Check file modification time - use newest
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+
+		if info.ModTime().Unix() > newestTime {
+			newestTime = info.ModTime().Unix()
+			newestToken = token
+		}
+	}
+
+	if newestToken == "" {
+		return "", fmt.Errorf("no valid SSO access token found. Run 'cloudctx aws login' first")
+	}
+
+	return newestToken, nil
+}
+
