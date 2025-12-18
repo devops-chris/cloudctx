@@ -1,4 +1,4 @@
-.PHONY: build clean test lint install
+.PHONY: build clean test lint install check
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
@@ -31,4 +31,8 @@ deps:
 
 release-dry:
 	goreleaser release --snapshot --clean
+
+# Run all checks before pushing (lint + test + build)
+check: lint test build
+	@echo "All checks passed!"
 

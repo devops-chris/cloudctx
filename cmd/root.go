@@ -63,8 +63,8 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	}
 
 	// Delegate to AWS command
-	awsCmd.Flags().Set("current", fmt.Sprintf("%v", rootShowCurrent))
-	awsCmd.Flags().Set("list", fmt.Sprintf("%v", rootShowList))
+	_ = awsCmd.Flags().Set("current", fmt.Sprintf("%v", rootShowCurrent))
+	_ = awsCmd.Flags().Set("list", fmt.Sprintf("%v", rootShowList))
 	return awsCmd.RunE(cmd, args)
 }
 
