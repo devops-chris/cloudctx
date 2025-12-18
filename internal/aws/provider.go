@@ -98,6 +98,11 @@ func (p *Provider) Sync() error {
 		return fmt.Errorf("SSO start URL not configured. Run 'cloudctx aws init' first")
 	}
 
+	// Ensure SSO session exists (profiles will reference it)
+	if err := p.ensureSSOSession(); err != nil {
+		return fmt.Errorf("failed to configure SSO session: %w", err)
+	}
+
 	ctx := context.Background()
 
 	// Get SSO access token from cache
@@ -136,7 +141,7 @@ func (p *Provider) Sync() error {
 		}
 	}
 
-	// Generate profiles for each account/role
+	// Generate profiles for each account/role (using sso_session reference)
 	for _, account := range accountsOutput.AccountList {
 		rolesOutput, err := ssoClient.ListAccountRoles(ctx, &sso.ListAccountRolesInput{
 			AccessToken: aws.String(accessToken),
@@ -156,8 +161,7 @@ func (p *Provider) Sync() error {
 			}
 
 			_, _ = section.NewKey("# cloudctx_managed", "true")
-			_, _ = section.NewKey("sso_start_url", p.ssoStartURL)
-			_, _ = section.NewKey("sso_region", p.ssoRegion)
+			_, _ = section.NewKey("sso_session", "cloudctx-cli")
 			_, _ = section.NewKey("sso_account_id", aws.ToString(account.AccountId))
 			_, _ = section.NewKey("sso_role_name", aws.ToString(role.RoleName))
 			_, _ = section.NewKey("region", p.defaultRegion)
