@@ -1,8 +1,8 @@
 # cloudctx configuration
 # Copy to: ~/.config/cloudctx/config.yaml
 
-# Default cloud provider (aws, azure, gcp)
-# When set, you can just run 'cloudctx' instead of 'cloudctx aws'
+# Default cloud provider: aws or azure
+# When set, you can just run 'ctx' instead of 'ctx aws'
 default_cloud: aws
 
 # AWS settings

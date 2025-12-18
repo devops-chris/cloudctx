@@ -14,14 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `ctx azure` - Interactive subscription picker
   - `ctx azure login` - Azure authentication (disables Azure CLI's built-in picker)
   - `ctx azure whoami` - Show current identity
-  - `ctx azure -l` - List subscriptions
+  - `ctx azure list` - List subscriptions
   - Friendly messages for `ctx azure init` and `ctx azure sync` (not needed for Azure)
 - Set `default_cloud: azure` in config to use `ctx` directly for Azure
+- **Commands and flags work interchangeably:**
+  - `list` command or `-l` flag
+  - `current` command or `-c` flag  
+  - `version` command or `-v` flag
 - **AWS: Read profiles from both files** - `~/.aws/config` AND `~/.aws/credentials`
 - **AWS: Switch to any profile type** - SSO and credentials-based profiles both work
 - Source indicator (`[sso]` or `[manual]`) in AWS profile list and picker
 - `--sso` and `--manual` flags to filter AWS profile list
-- Improved help text showing AWS vs Azure commands clearly
 
 ### Fixed
 - **AWS: SSO sync now fetches ALL accounts** - Fixed pagination bug that only returned first ~20 accounts

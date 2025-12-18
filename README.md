@@ -75,47 +75,60 @@ ctx -l                  # List all
 
 ## Usage
 
-### AWS Profile Switching
+### AWS
 
 ```bash
-ctx                       # Interactive profile picker
-ctx <profile>             # Set specific profile
-ctx prod                  # Fuzzy match (picker if multiple)
-ctx -c                    # Show current profile
-ctx -l                    # List all profiles
-ctx -l --sso              # List only SSO-synced profiles
-ctx -l --manual           # List only manually created profiles
+ctx aws                   # Interactive profile picker
+ctx aws <profile>         # Switch to profile
+ctx aws list              # List profiles (or: ctx aws -l)
+ctx aws current           # Show current (or: ctx aws -c)
+ctx aws login             # SSO login
+ctx aws sync              # Sync from SSO
+ctx aws whoami            # Show identity
+ctx aws init              # Configure SSO (first time)
 ```
 
-The list and picker show both SSO-synced and manually created profiles. Each profile is tagged with its source (`[sso]` or `[manual]`) so you can tell them apart.
-
-### AWS Setup & Auth
-
+Filter options:
 ```bash
-ctx init                  # Configure SSO settings
-ctx login                 # SSO authentication
-ctx sync                  # Sync profiles from SSO
-ctx whoami                # Show current identity
-ctx whoami --json
+ctx aws list --sso        # Only SSO-synced profiles
+ctx aws list --manual     # Only manually created profiles
 ```
 
-### Azure Subscription Switching
+### Azure
 
 ```bash
 ctx azure                 # Interactive subscription picker
-ctx azure <subscription>  # Set specific subscription
-ctx azure -c              # Show current subscription
-ctx azure -l              # List all subscriptions
+ctx azure <subscription>  # Switch to subscription
+ctx azure list            # List subscriptions (or: ctx azure -l)
+ctx azure current         # Show current (or: ctx azure -c)
 ctx azure login           # Azure login (opens browser)
-ctx azure whoami          # Show current identity
-ctx azure whoami --json
+ctx azure whoami          # Show identity
 ```
 
-> **Note:** Azure doesn't need a `sync` command - subscriptions are fetched live from Azure CLI.
+> **Note:** Azure doesn't need `init` or `sync` - subscriptions are fetched live.
+
+### Shortcuts
+
+Routes to `default_cloud` (default: aws):
+
+```bash
+ctx                       # Interactive picker
+ctx <name>                # Switch to profile/subscription
+ctx list                  # List all (or: ctx -l)
+ctx current               # Show current (or: ctx -c)
+ctx version               # Show version (or: ctx -v)
+ctx login                 # Login
+ctx whoami                # Show identity
+```
+
+> **Note:** `-l`, `-c`, `-v` are shortcuts for `list`, `current`, `version` commands.
+> `ls` is an alias for `list`. Use one or the other, not both.
 
 ## How It Works
 
-When you select a profile, cloudctx copies its settings to the `[default]` section in `~/.aws/config`. This is the same approach used by kubectx - no environment variables or shell integration needed.
+**AWS:** When you select a profile, cloudctx copies its settings to the `[default]` section in `~/.aws/config` (or `~/.aws/credentials` for key-based profiles). No environment variables needed.
+
+**Azure:** Uses `az account set` to switch subscriptions directly via Azure CLI.
 
 ## Configuration
 
