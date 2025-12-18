@@ -15,8 +15,8 @@ type Config struct {
 	// AWS configuration
 	AWS AWSConfig `mapstructure:"aws"`
 
-	// Azure configuration (future)
-	// Azure AzureConfig `mapstructure:"azure"`
+	// Azure configuration
+	Azure AzureConfig `mapstructure:"azure"`
 }
 
 // AWSConfig holds AWS-specific configuration
@@ -31,6 +31,12 @@ type AWSConfig struct {
 	DefaultRegion string `mapstructure:"default_region"`
 }
 
+// AzureConfig holds Azure-specific configuration
+type AzureConfig struct {
+	// DefaultLocation is the default Azure location/region
+	DefaultLocation string `mapstructure:"default_location"`
+}
+
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
@@ -39,6 +45,9 @@ func DefaultConfig() *Config {
 			SSOStartURL:   "",
 			SSORegion:     "us-east-1",
 			DefaultRegion: "us-east-1",
+		},
+		Azure: AzureConfig{
+			DefaultLocation: "eastus",
 		},
 	}
 }
@@ -54,6 +63,7 @@ func Load(configFile string) *Config {
 	v.SetDefault("aws.sso_start_url", cfg.AWS.SSOStartURL)
 	v.SetDefault("aws.sso_region", cfg.AWS.SSORegion)
 	v.SetDefault("aws.default_region", cfg.AWS.DefaultRegion)
+	v.SetDefault("azure.default_location", cfg.Azure.DefaultLocation)
 
 	// Environment variables
 	v.SetEnvPrefix("CLOUDCTX")

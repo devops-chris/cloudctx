@@ -4,14 +4,13 @@ Future enhancements planned for cloudctx.
 
 ## Near Term
 
-### Azure Support
-- Azure subscription switching
-- Azure CLI integration for login
-- Service principal support
-
 ### GCP Support
 - GCP project switching
 - gcloud CLI integration
+
+### Azure Enhancements
+- Service principal support
+- Tenant switching
 
 ## Medium Term
 

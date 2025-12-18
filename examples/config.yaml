@@ -16,10 +16,10 @@ aws:
   # Default AWS region for generated profiles
   default_region: us-east-1
 
-# Azure settings (coming soon)
-# azure:
-#   tenant_id: your-tenant-id
-#   default_subscription: your-subscription-id
+# Azure settings
+azure:
+  # Default Azure location/region
+  default_location: eastus
 
 # GCP settings (coming soon)
 # gcp:

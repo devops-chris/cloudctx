@@ -28,25 +28,31 @@ var rootCmd = &cobra.Command{
 	Short: "Switch between cloud contexts easily",
 	Long: `cloudctx - A unified CLI for switching between cloud contexts.
 
-Supports AWS profiles, Azure subscriptions, and more.
+Supports AWS profiles and Azure subscriptions.
 
-Quick Start:
-  cloudctx                  # Interactive profile picker (uses default cloud)
-  cloudctx <profile>        # Set specific profile
-  cloudctx -c               # Show current profile
-  cloudctx -l               # List all profiles
-  
+AWS Commands:
+  cloudctx aws              # Interactive AWS profile picker
+  cloudctx aws -l           # List AWS profiles
+  cloudctx aws init         # Configure AWS SSO
   cloudctx aws login        # AWS SSO login
   cloudctx aws sync         # Sync profiles from SSO
-  cloudctx aws whoami       # Show current AWS identity
+  cloudctx aws whoami       # Show AWS identity
+
+Azure Commands:
+  cloudctx azure            # Interactive Azure subscription picker
+  cloudctx azure -l         # List Azure subscriptions  
+  cloudctx azure login      # Azure login (opens browser)
+  cloudctx azure whoami     # Show Azure identity
+
+Shortcuts (uses default_cloud from config, default: aws):
+  cloudctx                  # Interactive picker
+  cloudctx <name>           # Switch to profile/subscription
+  cloudctx -l               # List all
+  cloudctx -c               # Show current
 
 Configuration:
-  cloudctx uses ~/.config/cloudctx/config.yaml for settings.
-  
-Environment Variables:
-  CLOUDCTX_DEFAULT_CLOUD        Default cloud provider (aws, azure)
-  CLOUDCTX_AWS_SSO_START_URL    AWS SSO portal URL
-  CLOUDCTX_AWS_SSO_REGION       AWS SSO region`,
+  Config file: ~/.config/cloudctx/config.yaml
+  Set 'default_cloud: azure' to use Azure as default.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runRoot,
 }
@@ -57,15 +63,20 @@ var (
 )
 
 func runRoot(cmd *cobra.Command, args []string) error {
-	// Use default cloud (aws for now)
-	if cfg.DefaultCloud != "aws" && cfg.DefaultCloud != "" {
-		return fmt.Errorf("unsupported cloud: %s", cfg.DefaultCloud)
+	// Route to appropriate cloud provider
+	switch cfg.DefaultCloud {
+	case "azure", "az":
+		_ = azureCmd.Flags().Set("current", fmt.Sprintf("%v", rootShowCurrent))
+		_ = azureCmd.Flags().Set("list", fmt.Sprintf("%v", rootShowList))
+		return azureCmd.RunE(cmd, args)
+	case "aws", "":
+		// AWS is default
+		_ = awsCmd.Flags().Set("current", fmt.Sprintf("%v", rootShowCurrent))
+		_ = awsCmd.Flags().Set("list", fmt.Sprintf("%v", rootShowList))
+		return awsCmd.RunE(cmd, args)
+	default:
+		return fmt.Errorf("unsupported cloud: %s (supported: aws, azure)", cfg.DefaultCloud)
 	}
-
-	// Delegate to AWS command
-	_ = awsCmd.Flags().Set("current", fmt.Sprintf("%v", rootShowCurrent))
-	_ = awsCmd.Flags().Set("list", fmt.Sprintf("%v", rootShowList))
-	return awsCmd.RunE(cmd, args)
 }
 
 func Execute() {
@@ -82,20 +93,53 @@ func init() {
 	rootCmd.Flags().BoolVarP(&rootShowCurrent, "current", "c", false, "show current profile")
 	rootCmd.Flags().BoolVarP(&rootShowList, "list", "l", false, "list all profiles")
 
-	// Add shortcuts for common commands when using default cloud
-	rootCmd.AddCommand(createShortcut("init", "Initialize cloud configuration", awsInitCmd))
-	rootCmd.AddCommand(createShortcut("login", "Login to cloud provider", awsLoginCmd))
-	rootCmd.AddCommand(createShortcut("sync", "Sync profiles from cloud", awsSyncCmd))
-	rootCmd.AddCommand(createShortcut("whoami", "Show current identity", awsWhoamiCmd))
+	// Add shortcuts for common commands (routed based on default cloud)
+	rootCmd.AddCommand(createLoginShortcut())
+	rootCmd.AddCommand(createWhoamiShortcut())
+	// Note: init and sync are AWS-specific for now
+	rootCmd.AddCommand(createShortcut("init", "Initialize AWS SSO configuration", awsInitCmd))
+	rootCmd.AddCommand(createShortcut("sync", "Sync AWS profiles from SSO", awsSyncCmd))
 }
 
-// createShortcut creates a root-level shortcut to a cloud-specific command
+// createShortcut creates a root-level shortcut to a specific command
 func createShortcut(name, short string, target *cobra.Command) *cobra.Command {
 	return &cobra.Command{
 		Use:   name,
-		Short: short + " (uses default cloud)",
+		Short: short,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return target.RunE(cmd, args)
+		},
+	}
+}
+
+// createLoginShortcut creates login shortcut that routes to default cloud
+func createLoginShortcut() *cobra.Command {
+	return &cobra.Command{
+		Use:   "login",
+		Short: "Login to cloud provider (uses default cloud)",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			switch cfg.DefaultCloud {
+			case "azure", "az":
+				return azureLoginCmd.RunE(cmd, args)
+			default:
+				return awsLoginCmd.RunE(cmd, args)
+			}
+		},
+	}
+}
+
+// createWhoamiShortcut creates whoami shortcut that routes to default cloud
+func createWhoamiShortcut() *cobra.Command {
+	return &cobra.Command{
+		Use:   "whoami",
+		Short: "Show current identity (uses default cloud)",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			switch cfg.DefaultCloud {
+			case "azure", "az":
+				return azureWhoamiCmd.RunE(cmd, args)
+			default:
+				return awsWhoamiCmd.RunE(cmd, args)
+			}
 		},
 	}
 }

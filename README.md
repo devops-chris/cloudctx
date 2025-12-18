@@ -7,8 +7,9 @@ A unified CLI for switching between cloud contexts. Think **kubectx** for cloud 
 
 ## Features
 
-- Interactive profile picker with fuzzy filtering
-- AWS SSO integration with automatic profile sync
+- Interactive profile/subscription picker with fuzzy filtering
+- **AWS**: SSO integration with automatic profile sync, credentials file support
+- **Azure**: Subscription switching via Azure CLI
 - No shell integration required - works like kubectx
 - Pretty terminal output with tables and colors
 - JSON output for scripting
@@ -34,22 +35,47 @@ Download from [GitHub Releases](https://github.com/devops-chris/cloudctx/release
 
 ## Quick Start
 
+### AWS (default)
+
 ```bash
 # First time setup
-ctx init                # Configure SSO
-ctx login               # Authenticate
-ctx sync                # Fetch profiles
+ctx aws init            # Configure SSO
+ctx aws login           # Authenticate  
+ctx aws sync            # Fetch profiles from SSO
 
 # Daily use
-ctx                     # Interactive picker
-ctx prod                # Switch to profile matching "prod"
+ctx aws                 # Interactive profile picker
+ctx aws prod            # Switch to profile matching "prod"
+ctx aws -l              # List all profiles
+```
+
+### Azure
+
+```bash
+# First time setup
+ctx azure login         # Authenticate (opens browser)
+
+# Daily use
+ctx azure               # Interactive subscription picker
+ctx azure my-sub        # Switch to subscription matching "my-sub"
+ctx azure -l            # List all subscriptions
+```
+
+### Shortcuts
+
+If you mostly use one cloud, set `default_cloud` in config and skip the cloud name:
+
+```bash
+ctx                     # Interactive picker (uses default cloud)
+ctx prod                # Switch to matching profile/subscription
+ctx -l                  # List all
 ```
 
 > **Note:** `ctx` is an alias for `cloudctx`, installed automatically via Homebrew.
 
 ## Usage
 
-### Profile Switching
+### AWS Profile Switching
 
 ```bash
 ctx                       # Interactive profile picker
@@ -59,12 +85,11 @@ ctx -c                    # Show current profile
 ctx -l                    # List all profiles
 ctx -l --sso              # List only SSO-synced profiles
 ctx -l --manual           # List only manually created profiles
-ctx --sso                 # Interactive picker (SSO profiles only)
 ```
 
 The list and picker show both SSO-synced and manually created profiles. Each profile is tagged with its source (`[sso]` or `[manual]`) so you can tell them apart.
 
-### Setup & Auth
+### AWS Setup & Auth
 
 ```bash
 ctx init                  # Configure SSO settings
@@ -73,6 +98,20 @@ ctx sync                  # Sync profiles from SSO
 ctx whoami                # Show current identity
 ctx whoami --json
 ```
+
+### Azure Subscription Switching
+
+```bash
+ctx azure                 # Interactive subscription picker
+ctx azure <subscription>  # Set specific subscription
+ctx azure -c              # Show current subscription
+ctx azure -l              # List all subscriptions
+ctx azure login           # Azure login (opens browser)
+ctx azure whoami          # Show current identity
+ctx azure whoami --json
+```
+
+> **Note:** Azure doesn't need a `sync` command - subscriptions are fetched live from Azure CLI.
 
 ## How It Works
 
@@ -83,32 +122,38 @@ When you select a profile, cloudctx copies its settings to the `[default]` secti
 Configuration file: `~/.config/cloudctx/config.yaml`
 
 ```yaml
-default_cloud: aws
+default_cloud: aws  # or "azure"
 
 aws:
   sso_start_url: https://your-org.awsapps.com/start
   sso_region: us-east-1
   default_region: us-east-1
+
+azure:
+  default_location: eastus
 ```
 
 ### Environment Variables
 
 | Variable | Description |
 |----------|-------------|
-| `CLOUDCTX_DEFAULT_CLOUD` | Default cloud provider |
+| `CLOUDCTX_DEFAULT_CLOUD` | Default cloud provider (`aws` or `azure`) |
 | `CLOUDCTX_AWS_SSO_START_URL` | AWS SSO portal URL |
 | `CLOUDCTX_AWS_SSO_REGION` | AWS SSO region |
 | `CLOUDCTX_AWS_DEFAULT_REGION` | Default region for profiles |
+| `CLOUDCTX_AZURE_DEFAULT_LOCATION` | Default Azure location |
 
 ## Prerequisites
 
+**For AWS:**
 - [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) (required for SSO login)
-- AWS SSO access
+
+**For Azure:**
+- [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli) (`brew install azure-cli`)
 
 ## Roadmap
 
 See [ROADMAP.md](ROADMAP.md) for planned features:
-- Azure subscription switching
 - GCP project switching
 - Profile favorites and groups
 - aws-vault integration
