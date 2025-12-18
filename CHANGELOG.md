@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.0] - 2024-12-18
+## [0.2.1] - 2024-12-18
 
 ### Added
 - **Azure support** - Full Azure subscription switching via Azure CLI
@@ -101,8 +101,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cross-platform support (macOS, Linux, Windows)
 - Homebrew installation support
 
-[Unreleased]: https://github.com/devops-chris/cloudctx/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/devops-chris/cloudctx/compare/v0.1.6...v0.2.0
+[Unreleased]: https://github.com/devops-chris/cloudctx/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/devops-chris/cloudctx/compare/v0.1.6...v0.2.1
 [0.1.6]: https://github.com/devops-chris/cloudctx/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/devops-chris/cloudctx/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/devops-chris/cloudctx/compare/v0.1.3...v0.1.4
