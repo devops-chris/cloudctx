@@ -85,9 +85,9 @@ func (p *Provider) ensureSSOSession() error {
 		section.DeleteKey(key.Name())
 	}
 
-	section.NewKey("sso_start_url", p.ssoStartURL)
-	section.NewKey("sso_region", p.ssoRegion)
-	section.NewKey("sso_registration_scopes", "sso:account:access")
+	_, _ = section.NewKey("sso_start_url", p.ssoStartURL)
+	_, _ = section.NewKey("sso_region", p.ssoRegion)
+	_, _ = section.NewKey("sso_registration_scopes", "sso:account:access")
 
 	return awsCfg.SaveTo(awsConfigPath)
 }
@@ -155,13 +155,13 @@ func (p *Provider) Sync() error {
 				continue
 			}
 
-			section.NewKey("# cloudctx_managed", "true")
-			section.NewKey("sso_start_url", p.ssoStartURL)
-			section.NewKey("sso_region", p.ssoRegion)
-			section.NewKey("sso_account_id", aws.ToString(account.AccountId))
-			section.NewKey("sso_role_name", aws.ToString(role.RoleName))
-			section.NewKey("region", p.defaultRegion)
-			section.NewKey("output", "json")
+			_, _ = section.NewKey("# cloudctx_managed", "true")
+			_, _ = section.NewKey("sso_start_url", p.ssoStartURL)
+			_, _ = section.NewKey("sso_region", p.ssoRegion)
+			_, _ = section.NewKey("sso_account_id", aws.ToString(account.AccountId))
+			_, _ = section.NewKey("sso_role_name", aws.ToString(role.RoleName))
+			_, _ = section.NewKey("region", p.defaultRegion)
+			_, _ = section.NewKey("output", "json")
 		}
 	}
 
@@ -236,12 +236,12 @@ func (p *Provider) SetContext(name string) error {
 		if key.Name() == "# cloudctx_managed" {
 			continue // Don't copy our internal marker
 		}
-		defaultSection.NewKey(key.Name(), key.Value())
+		_, _ = defaultSection.NewKey(key.Name(), key.Value())
 	}
 
 	// Mark which profile is current
 	defaultSection.DeleteKey("# cloudctx_current")
-	defaultSection.NewKey("# cloudctx_current", name)
+	_, _ = defaultSection.NewKey("# cloudctx_current", name)
 
 	// Save
 	if err := awsCfg.SaveTo(awsConfigPath); err != nil {

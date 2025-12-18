@@ -12,6 +12,8 @@ linters-settings:
     exclude-functions:
       - (github.com/pterm/pterm.SpinnerPrinter).Stop
       - (github.com/pterm/pterm.TablePrinter).Render
+      - (*gopkg.in/ini.v1.Section).NewKey
+      - (*gopkg.in/ini.v1.Section).DeleteKey
 
 issues:
   exclude-rules:
