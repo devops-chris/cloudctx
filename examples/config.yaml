@@ -5,7 +5,7 @@
 # When set, you can just run 'ctx' instead of 'ctx aws'
 default_cloud: aws
 
-# AWS settings
+# AWS settings (single org - use sso_start_url at top level)
 aws:
   # Your organization's AWS SSO portal URL (required for sync)
   sso_start_url: https://your-org.awsapps.com/start
@@ -15,6 +15,20 @@ aws:
   
   # Default AWS region for generated profiles
   default_region: us-east-1
+
+# AWS with multiple organizations (optional)
+# When set, use: cloudctx aws login --org work, cloudctx aws sync --org work (or --org all)
+# aws:
+#   default_organization: work
+#   organizations:
+#     work:
+#       sso_start_url: https://work.awsapps.com/start
+#       sso_region: us-east-1
+#       default_region: us-east-1
+#     personal:
+#       sso_start_url: https://personal.awsapps.com/start
+#       sso_region: us-east-1
+#       default_region: us-west-2
 
 # Azure settings
 azure:
