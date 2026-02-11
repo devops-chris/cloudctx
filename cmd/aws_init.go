@@ -104,6 +104,7 @@ aws:
 	pterm.FgCyan.Println("  1. cloudctx aws login    # Authenticate with SSO")
 	pterm.FgCyan.Println("  2. cloudctx aws sync     # Fetch available profiles")
 	pterm.FgCyan.Println("  3. cloudctx aws          # Select a profile")
+	pterm.FgGray.Println("To add another AWS org later: cloudctx aws org add")
 	fmt.Println()
 
 	return nil

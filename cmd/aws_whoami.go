@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/devops-chris/cloudctx/internal/aws"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
@@ -32,7 +31,7 @@ func init() {
 }
 
 func runAWSWhoami(cmd *cobra.Command, args []string) error {
-	p := aws.NewProvider(cfg.AWS.SSOStartURL, cfg.AWS.SSORegion, cfg.AWS.DefaultRegion)
+	p := getAWSListProvider()
 
 	identity, err := p.WhoAmI()
 	if err != nil {
