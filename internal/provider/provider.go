@@ -5,6 +5,7 @@ package provider
 type Context struct {
 	Name        string
 	Cloud       string // "aws", "azure", "gcp"
+	Org         string // AWS org key when multi-org (e.g. "work", "personal")
 	AccountID   string
 	AccountName string
 	Role        string // AWS role, Azure role, etc.
