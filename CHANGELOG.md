@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-02-11
+
+### Added
+- **Default provider shortcuts** — When `default_cloud` is set, all commands work without typing `aws`/`azure`:
+  - `cloudctx login`, `cloudctx sync`, `cloudctx init` route to default cloud (AWS or Azure)
+  - Root-level `cloudctx org add|rename|remove|clean-credentials` (when default is AWS); use `cloudctx aws org ...` when default is Azure
+- **Login uses profile in context** — `cloudctx login` (no `--org`) logs in to the org of your current profile so `aws s3 ls` etc. work; pass `--org NAME` to log in to a specific org instead
+- **Org colors in picker and list** — When you have multiple AWS orgs, each org gets a stable color so you can tell profiles apart at a glance
+- **Org rename without guessing** — `cloudctx org rename` with no args: single org prompts for new name; multiple orgs prints "Your orgs: a, b, c" and usage
+- **Documentation** — [Default provider and shortcuts](docs/DEFAULT-PROVIDER-AND-SHORTCUTS.md) for setting default and full shortcut list; README section "Setting the default provider"
+
+### Changed
+- **[sso] vs [manual] label** — Now based on whether the profile uses SSO (`sso_session` or `sso_account_id` in config), not `cloudctx_managed`. SSO profiles added by hand show [sso]; key-based show [manual]. `cloudctx_managed` is only used for sync/rename
+- **sync --org all** — Syncs all orgs and reports which failed at the end instead of stopping on first failure
+- **Org column in list/picker** — Shown when you have 2+ orgs or when the single org is not named "default" (so renamed orgs show clearly)
+- **clean-credentials help** — Clarified as one-time cleanup; new renames don’t require it
+
+### Fixed
+- Profiles that should show as [manual] (e.g. key-based) no longer incorrectly show [sso] when they lack SSO keys
+
 ## [0.2.1] - 2024-12-18
 
 ### Added
@@ -101,7 +121,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cross-platform support (macOS, Linux, Windows)
 - Homebrew installation support
 
-[Unreleased]: https://github.com/devops-chris/cloudctx/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/devops-chris/cloudctx/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/devops-chris/cloudctx/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/devops-chris/cloudctx/compare/v0.1.6...v0.2.1
 [0.1.6]: https://github.com/devops-chris/cloudctx/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/devops-chris/cloudctx/compare/v0.1.4...v0.1.5

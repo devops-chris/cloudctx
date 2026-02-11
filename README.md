@@ -35,12 +35,13 @@ Download from [GitHub Releases](https://github.com/devops-chris/cloudctx/release
 
 ## Quick Start
 
-### AWS (default)
+### AWS (default) — brand new to cloudctx
+
+**One org (e.g. work only):**
 
 ```bash
-# First time setup
-ctx aws init            # Configure SSO
-ctx aws login           # Authenticate  
+ctx aws init            # Prompts: SSO URL, regions → creates config
+ctx aws login           # Authenticate in browser
 ctx aws sync            # Fetch profiles from SSO
 
 # Daily use
@@ -48,6 +49,19 @@ ctx aws                 # Interactive profile picker
 ctx aws prod            # Switch to profile matching "prod"
 ctx aws -l              # List all profiles
 ```
+
+**Multiple orgs (e.g. work + personal):** use `org add` instead of (or after) `init`:
+
+```bash
+ctx aws org add work    # First org: prompts for SSO URL and regions
+ctx aws org add personal # Second org: same prompts, adds to config
+ctx aws login --org work
+ctx aws sync --org all
+ctx aws                 # Picker shows all profiles from all orgs
+```
+
+- **init** and **org add** use the same basic flow (SSO URL + regions). `init` is “first-time, one org” and writes the simple config. `org add` adds a *named* org—use it for your first org if you want names from the start, or to add a second, third, etc. after `init`.
+- Once you have one org, add more with **`ctx aws org add`** (or **`ctx aws org add <name>`**) as many times as you need.
 
 ### Azure
 
@@ -61,15 +75,20 @@ ctx azure my-sub        # Switch to subscription matching "my-sub"
 ctx azure -l            # List all subscriptions
 ```
 
-### Shortcuts
+### Shortcuts (default provider)
 
-If you mostly use one cloud, set `default_cloud` in config and skip the cloud name:
+If you mostly use one cloud, set the **default provider** in config (see [Setting the default provider](#setting-the-default-provider) below). Then you can skip the cloud name:
 
 ```bash
 ctx                     # Interactive picker (uses default cloud)
 ctx prod                # Switch to matching profile/subscription
 ctx -l                  # List all
+ctx login               # Login (AWS SSO or Azure)
+ctx sync                # Sync (AWS) or no-op (Azure)
+ctx org rename default work   # When default is AWS: manage orgs
 ```
+
+Full list of shortcuts and how to set the default: **[Default provider and shortcuts](docs/DEFAULT-PROVIDER-AND-SHORTCUTS.md)**.
 
 > **Note:** `ctx` is an alias for `cloudctx`, installed automatically via Homebrew.
 
@@ -86,7 +105,10 @@ ctx aws login             # SSO login
 ctx aws sync              # Sync from SSO
 ctx aws whoami            # Show identity
 ctx aws init              # Configure SSO (first time)
+ctx aws org add [name]    # Add another AWS org (e.g. second SSO portal)
 ```
+
+**Multi-org:** If you have more than one AWS organization (e.g. work and personal SSO), add each with `ctx aws org add`, then use `--org` with login/sync: `ctx aws login --org work`, `ctx aws sync --org all`. List and picker show all profiles from all orgs. Rename an org (e.g. `default` → `work`) with **`ctx aws org rename default work`**.
 
 Filter options:
 ```bash
@@ -107,22 +129,26 @@ ctx azure whoami          # Show identity
 
 > **Note:** Azure doesn't need `init` or `sync` - subscriptions are fetched live.
 
-### Shortcuts
+### Shortcuts (default provider)
 
-Routes to `default_cloud` (default: aws):
+When a **default provider** is set, these commands run against that provider (no `aws`/`azure` needed):
 
-```bash
-ctx                       # Interactive picker
-ctx <name>                # Switch to profile/subscription
-ctx list                  # List all (or: ctx -l)
-ctx current               # Show current (or: ctx -c)
-ctx version               # Show version (or: ctx -v)
-ctx login                 # Login
-ctx whoami                # Show identity
-```
+| Command | Description |
+|---------|-------------|
+| `ctx` | Interactive picker |
+| `ctx <name>` | Switch to profile/subscription |
+| `ctx list` or `-l` | List all |
+| `ctx current` or `-c` | Show current |
+| `ctx login` | Login (AWS: org of current profile, or `--org NAME`; Azure: browser) |
+| `ctx init` | Initialize (AWS SSO; no-op for Azure) |
+| `ctx sync` | Sync (AWS profiles; no-op for Azure) |
+| `ctx org add/rename/remove/clean-credentials` | Manage AWS orgs (only when default is AWS) |
+| `ctx whoami` | Show identity |
+| `ctx version` or `-v` | Show version |
 
-> **Note:** `-l`, `-c`, `-v` are shortcuts for `list`, `current`, `version` commands.
-> `ls` is an alias for `list`. Use one or the other, not both.
+See **[Default provider and shortcuts](docs/DEFAULT-PROVIDER-AND-SHORTCUTS.md)** for how to set the default and full details.
+
+> **Note:** `-l`, `-c`, `-v` are shorthand for `list`, `current`, `version`. `ls` is an alias for `list`. Use one or the other, not both.
 
 ## How It Works
 
@@ -145,6 +171,19 @@ aws:
 azure:
   default_location: eastus
 ```
+
+### Setting the default provider
+
+The **default provider** is used when you run commands without specifying `aws` or `azure` (e.g. `cloudctx login`, `cloudctx sync`). Set it in your config file:
+
+```yaml
+default_cloud: aws   # or "azure" / "az"
+```
+
+- **`aws`** — Default. All shortcut commands (login, sync, list, org, etc.) run against AWS.
+- **`azure`** or **`az`** — Shortcut commands run against Azure. For AWS-only commands (e.g. org), use `cloudctx aws org ...` explicitly.
+
+You can override via environment: `CLOUDCTX_DEFAULT_CLOUD=azure`. See **[Default provider and shortcuts](docs/DEFAULT-PROVIDER-AND-SHORTCUTS.md)** for the full shortcut list and examples.
 
 ### Environment Variables
 

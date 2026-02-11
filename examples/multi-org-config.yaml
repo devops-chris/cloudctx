@@ -1,0 +1,24 @@
+# Example: AWS with multiple organizations (e.g. work + personal SSO)
+# Copy to ~/.config/cloudctx/config.yaml or use: cloudctx --config examples/multi-org-config.yaml aws -l
+#
+# You can also add orgs from the CLI: cloudctx aws org add
+
+default_cloud: aws
+
+aws:
+  # Which org to use when you run login/sync without --org
+  default_organization: work
+
+  organizations:
+    work:
+      sso_start_url: https://work.awsapps.com/start
+      sso_region: us-east-1
+      default_region: us-east-1
+
+    personal:
+      sso_start_url: https://personal.awsapps.com/start
+      sso_region: us-east-1
+      default_region: us-west-2
+
+azure:
+  default_location: eastus

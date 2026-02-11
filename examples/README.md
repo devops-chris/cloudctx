@@ -4,7 +4,8 @@ Configuration and integration examples for cloudctx.
 
 ## Files
 
-- `config.yaml` - Example cloudctx configuration file
+- `config.yaml` - Example cloudctx configuration (single AWS org)
+- `multi-org-config.yaml` - Example with multiple AWS organizations (e.g. work + personal SSO). Use with `cloudctx --config examples/multi-org-config.yaml aws -l`, or copy to `~/.config/cloudctx/config.yaml`. You can also add orgs from the CLI: `cloudctx aws org add`
 
 ## Shell Integration (Optional)
 

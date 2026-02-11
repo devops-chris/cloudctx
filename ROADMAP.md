@@ -2,6 +2,11 @@
 
 Future enhancements planned for cloudctx.
 
+## Recently completed (v0.3.0)
+- Default provider shortcuts (login, sync, init, org at root when default is set)
+- Login uses org of profile in context (no `--org` needed when switching profiles)
+- Multi-org UX: org colors in picker/list, org rename with prompts and org list when multiple
+
 ## Near Term
 
 ### GCP Support
