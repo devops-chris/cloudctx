@@ -198,7 +198,7 @@ func runAWSOrgRename(cmd *cobra.Command, args []string) error {
 	oldName := ""
 	newName := ""
 	orgs := cfg.AWSOrgs()
-	if orgs == nil || len(orgs) == 0 {
+	if len(orgs) == 0 {
 		pterm.Error.Println("No organizations configured")
 		pterm.FgGray.Println("Add one with: cloudctx org add [name]")
 		return nil
@@ -336,7 +336,7 @@ func runAWSOrgRemove(cmd *cobra.Command, args []string) error {
 	}
 
 	orgs := cfg.AWSOrgs()
-	if orgs == nil || len(orgs) == 0 {
+	if len(orgs) == 0 {
 		pterm.Error.Println("No organizations configured")
 		return nil
 	}
