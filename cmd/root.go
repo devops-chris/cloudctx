@@ -61,6 +61,7 @@ Shortcuts (same commands, no provider — use default_cloud):
   ctx whoami                Whoami
   ctx version    (or -v)    Version
   ctx org add|rename|...    AWS orgs only (shortcut when default is AWS; else use ctx aws org ...)
+  ctx doctor                 Check config and AWS setup
 
 Flags: -l/-c/-v = list/current/version. --org = AWS org for login/sync/list. Config: ~/.config/cloudctx/config.yaml`,
 	Args: cobra.MaximumNArgs(1),

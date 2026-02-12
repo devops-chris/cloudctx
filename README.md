@@ -150,6 +150,10 @@ See **[Default provider and shortcuts](docs/DEFAULT-PROVIDER-AND-SHORTCUTS.md)**
 
 > **Note:** `-l`, `-c`, `-v` are shorthand for `list`, `current`, `version`. `ls` is an alias for `list`. Use one or the other, not both.
 
+## Verifying your setup
+
+Run **`cloudctx doctor`** to check that config, default provider, AWS orgs, current profile, and credentials/SSO are correct. Use it anytime you want to confirm things are configured right.
+
 ## How It Works
 
 **AWS:** When you select a profile, cloudctx copies its settings to the `[default]` section in `~/.aws/config` (or `~/.aws/credentials` for key-based profiles). No environment variables needed.
