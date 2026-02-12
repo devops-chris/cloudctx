@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2025-02-11
+
+### Added
+- **`cloudctx doctor`** — Check that cloudctx and AWS are configured correctly: config file and default_cloud, AWS CLI in PATH, AWS orgs and default org, current profile and org, and whether credentials/SSO are valid (calls WhoAmI). See README "Verifying your setup".
+
 ## [0.3.0] - 2025-02-11
 
 ### Added
@@ -121,7 +126,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cross-platform support (macOS, Linux, Windows)
 - Homebrew installation support
 
-[Unreleased]: https://github.com/devops-chris/cloudctx/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/devops-chris/cloudctx/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/devops-chris/cloudctx/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/devops-chris/cloudctx/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/devops-chris/cloudctx/compare/v0.1.6...v0.2.1
 [0.1.6]: https://github.com/devops-chris/cloudctx/compare/v0.1.5...v0.1.6
