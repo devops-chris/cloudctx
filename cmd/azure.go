@@ -181,33 +181,26 @@ func pickAzureFromMatches(p *azure.Provider, contexts []provider.Context) error 
 	}
 
 	// Build options
-	options := make([]string, len(contexts))
+	items := make([]pickItem, len(contexts))
 	for i, ctx := range contexts {
 		if ctx.Name == currentName {
-			options[i] = fmt.Sprintf("* %s", ctx.Name)
+			items[i].display = pterm.FgGreen.Sprint("* ") + ctx.Name
 		} else {
-			options[i] = fmt.Sprintf("  %s", ctx.Name)
+			items[i].display = "  " + ctx.Name
 		}
+		items[i].search = ctx.Name
+		items[i].value = ctx.Name
 	}
 
 	fmt.Println()
 	pterm.Info.Printf("Found %d subscriptions\n", len(contexts))
-	pterm.FgGray.Println("Type to filter • Enter to select • Ctrl+C to cancel")
+	pterm.FgGray.Println("Type to filter (any order) • ↑/↓ to move • Enter to select • Esc to cancel")
 	fmt.Println()
 
-	selected, err := pterm.DefaultInteractiveSelect.
-		WithOptions(options).
-		WithFilter(true).
-		WithMaxHeight(20).
-		Show()
-
-	if err != nil {
+	subName, ok := runPicker(items, 20)
+	if !ok {
 		return nil // User cancelled
 	}
-
-	// Extract subscription name (remove marker)
-	subName := strings.TrimPrefix(selected, "* ")
-	subName = strings.TrimPrefix(subName, "  ")
 
 	return selectAzureSubscription(p, subName)
 }

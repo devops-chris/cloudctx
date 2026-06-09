@@ -10,7 +10,7 @@ A unified CLI for switching between cloud contexts. Think **kubectx** for cloud 
 - Interactive profile/subscription picker with fuzzy filtering
 - **AWS**: SSO integration with automatic profile sync, credentials file support
 - **Azure**: Subscription switching via Azure CLI
-- No shell integration required - works like kubectx
+- No shell integration required - works like kubectx (optional integration syncs `AWS_PROFILE` for prompts like Starship)
 - Pretty terminal output with tables and colors
 - JSON output for scripting
 - Cross-platform (macOS, Linux, Windows)
@@ -159,6 +159,22 @@ Run **`cloudctx doctor`** to check that config, default provider, AWS orgs, curr
 **AWS:** When you select a profile, cloudctx copies its settings to the `[default]` section in `~/.aws/config` (or `~/.aws/credentials` for key-based profiles). No environment variables needed.
 
 **Azure:** Uses `az account set` to switch subscriptions directly via Azure CLI.
+
+## Shell integration (Starship and other prompts)
+
+By default cloudctx does **not** set `AWS_PROFILE` — it switches by rewriting `[default]` in `~/.aws/config`, so no shell setup is needed. But prompt tools like [Starship](https://starship.rs) read the `AWS_PROFILE` environment variable to show the active profile, and a CLI can't change an environment variable in the shell that launched it.
+
+To make your prompt follow the active profile, add the integration to your shell rc file:
+
+```bash
+# ~/.zshrc
+eval "$(ctx shell-init zsh)"
+
+# ~/.bashrc
+eval "$(ctx shell-init bash)"
+```
+
+Open a new shell. Now `ctx aws <profile>` (and the interactive picker) update `AWS_PROFILE` automatically, and Starship reflects the change immediately. This works the same way as `zoxide init`, `direnv hook`, etc. — a small wrapper function around `ctx`.
 
 ## Configuration
 

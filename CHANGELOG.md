@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-09
+
+### Added
+- **Shell integration for prompts** — `ctx shell-init zsh|bash` prints a shell function that keeps the `AWS_PROFILE` environment variable in sync with the profile you switch to, so prompts like Starship and powerlevel10k display the active profile. It's optional: add `eval "$(ctx shell-init zsh)"` (or `bash`) to your shell rc file. All other functionality works without it, since cloudctx still switches by rewriting `[default]` in `~/.aws/config`. The Homebrew install now prints these setup instructions as caveats. See README "Shell integration".
+
+### Changed
+- **Interactive picker** — Replaced the built-in picker with a custom one:
+  - Filtering now matches space-separated terms in **any order** (e.g. `admin prod` matches `prod-account:AdminRole`), and matches against org, account ID, role, and source as well as the profile name.
+  - **Esc** (or **Ctrl+C**) cancels and leaves your current profile unchanged — previously cancelling could switch to the highlighted row.
+  - Applies to both the AWS and Azure pickers.
+
 ## [0.3.1] - 2025-02-11
 
 ### Added
@@ -126,7 +137,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cross-platform support (macOS, Linux, Windows)
 - Homebrew installation support
 
-[Unreleased]: https://github.com/devops-chris/cloudctx/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/devops-chris/cloudctx/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/devops-chris/cloudctx/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/devops-chris/cloudctx/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/devops-chris/cloudctx/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/devops-chris/cloudctx/compare/v0.1.6...v0.2.1

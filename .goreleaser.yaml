@@ -67,4 +67,19 @@ brews:
       bin.install_symlink "cloudctx" => "ctx"
     test: |
       system "#{bin}/cloudctx", "version"
+    caveats: |
+      cloudctx works out of the box - no shell setup required.
+
+      Optional: to make your shell prompt (Starship, powerlevel10k, etc.)
+      show the active AWS profile, add the shell integration so AWS_PROFILE
+      follows the profile you switch to:
+
+        # zsh - add to ~/.zshrc
+        eval "$(ctx shell-init zsh)"
+
+        # bash - add to ~/.bashrc
+        eval "$(ctx shell-init bash)"
+
+      Then open a new shell. This is only needed for prompt display; all
+      other functionality works without it.
 

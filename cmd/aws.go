@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -204,13 +203,6 @@ func awsProfileDisplayName(name, org string) string {
 	return name
 }
 
-// stripAnsi removes ANSI escape sequences so we can parse a colored string (e.g. from picker selection).
-var ansiStrip = regexp.MustCompile(`\x1b\[[0-9;]*m`)
-
-func stripAnsi(s string) string {
-	return ansiStrip.ReplaceAllString(s, "")
-}
-
 func listAWS(p *aws.Provider) error {
 	contexts, err := p.ListContexts()
 	if err != nil {
@@ -387,73 +379,39 @@ func pickFromMatches(p *aws.Provider, contexts []provider.Context) error {
 	}
 	orgColors := orgColorMap(orgsSeen)
 
-		// [sso]/[manual] from ctx.Managed (uses SSO = sso_session or sso_account_id; see ListContexts in internal/aws/provider.go)
-		options := make([]string, len(contexts))
-		for i, ctx := range contexts {
-			display := awsProfileDisplayName(ctx.Name, ctx.Org)
-			sourceStyled := pterm.FgYellow.Sprint("[manual]")
-			if ctx.Managed {
-				sourceStyled = pterm.FgGreen.Sprint("[sso]")
-			}
+	// [sso]/[manual] from ctx.Managed (uses SSO = sso_session or sso_account_id; see ListContexts in internal/aws/provider.go)
+	items := make([]pickItem, len(contexts))
+	for i, ctx := range contexts {
+		display := awsProfileDisplayName(ctx.Name, ctx.Org)
+		sourceWord := "manual"
+		sourceStyled := pterm.FgYellow.Sprint("[manual]")
+		if ctx.Managed {
+			sourceWord = "sso"
+			sourceStyled = pterm.FgGreen.Sprint("[sso]")
+		}
 		marker := "  "
 		if ctx.Name == currentName {
 			marker = pterm.FgGreen.Sprint("* ") // current row
 		}
 		if showOrg && ctx.Org != "" {
 			orgTag := sprintOrgTag(ctx.Org, orgColors)
-			options[i] = fmt.Sprintf("%s%s %s  %s", marker, orgTag, display, sourceStyled)
+			items[i].display = fmt.Sprintf("%s%s %s  %s", marker, orgTag, display, sourceStyled)
 		} else {
-			options[i] = fmt.Sprintf("%s%s  %s", marker, display, sourceStyled)
+			items[i].display = fmt.Sprintf("%s%s  %s", marker, display, sourceStyled)
 		}
+		// Filter against profile/org/account/role/source so any of those tokens match, in any order.
+		items[i].search = strings.Join([]string{display, ctx.Org, ctx.AccountID, ctx.Role, sourceWord}, " ")
+		items[i].value = ctx.Name
 	}
 
 	fmt.Println()
 	pterm.Info.Printf("Found %d profiles\n", len(contexts))
-	pterm.FgGray.Println("Type to filter • Enter to select • Ctrl+C to cancel")
+	pterm.FgGray.Println("Type to filter (any order) • ↑/↓ to move • Enter to select • Esc to cancel")
 	fmt.Println()
 
-	selected, err := pterm.DefaultInteractiveSelect.
-		WithOptions(options).
-		WithFilter(true).
-		WithMaxHeight(20).
-		Show()
-
-	if err != nil {
+	profileName, ok := runPicker(items, 20)
+	if !ok {
 		return nil
-	}
-
-	// Parse: strip ANSI (from colored selection), then marker and source; then "[org] profile" or "profile"
-	line := stripAnsi(selected)
-	line = strings.TrimPrefix(line, "* ")
-	line = strings.TrimPrefix(line, "  ")
-	for _, tok := range []string{"  [sso]", "  [manual]"} {
-		if idx := strings.Index(line, tok); idx != -1 {
-			line = strings.TrimSpace(line[:idx])
-			break
-		}
-	}
-	displayName := line
-	orgPart := ""
-	if len(line) > 0 && line[0] == '[' {
-		if end := strings.Index(line, "]"); end != -1 {
-			orgPart = strings.TrimSpace(line[1:end])
-			displayName = strings.TrimSpace(line[end+1:])
-		}
-	}
-	profileName := displayName
-	for _, ctx := range contexts {
-		if awsProfileDisplayName(ctx.Name, ctx.Org) != displayName {
-			continue
-		}
-		if orgPart != "" {
-			if ctx.Org == orgPart {
-				profileName = ctx.Name
-				break
-			}
-		} else {
-			profileName = ctx.Name
-			break
-		}
 	}
 
 	return selectProfile(p, profileName)
@@ -469,11 +427,17 @@ func selectProfile(p *aws.Provider, name string) error {
 	fmt.Println()
 	pterm.Success.Printf("Switched to %s\n", pterm.FgCyan.Sprint(name))
 
-	// Check if AWS_PROFILE is set (which would override our default)
-	if envProfile := os.Getenv("AWS_PROFILE"); envProfile != "" && envProfile != name {
-		fmt.Println()
-		pterm.Warning.Printf("Note: AWS_PROFILE=%s is set and will override this\n", envProfile)
-		pterm.FgGray.Println("Run: unset AWS_PROFILE")
+	// Check if AWS_PROFILE is set (which would override our default). When the
+	// shell integration is active (see "ctx shell-init"), the wrapper resets
+	// AWS_PROFILE to this profile right after we return, so they stay in sync and
+	// the warning would be misleading.
+	if os.Getenv("CLOUDCTX_SHELL_INTEGRATION") == "" {
+		if envProfile := os.Getenv("AWS_PROFILE"); envProfile != "" && envProfile != name {
+			fmt.Println()
+			pterm.Warning.Printf("Note: AWS_PROFILE=%s is set and will override this\n", envProfile)
+			pterm.FgGray.Println("Run: unset AWS_PROFILE")
+			pterm.FgGray.Println("Or for automatic syncing: eval \"$(ctx shell-init)\" in your shell rc")
+		}
 	}
 
 	return nil
