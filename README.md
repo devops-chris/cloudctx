@@ -176,6 +176,8 @@ eval "$(ctx shell-init bash)"
 
 Open a new shell. Now `ctx aws <profile>` (and the interactive picker) update `AWS_PROFILE` automatically, and Starship reflects the change immediately. This works the same way as `zoxide init`, `direnv hook`, etc. — a small wrapper function around `ctx`.
 
+The integration also seeds `AWS_PROFILE` when a new shell starts, so the profile you last switched to **persists across terminal sessions** (it reads the saved selection from `~/.config/cloudctx/aws_current`). You don't need to run `ctx` again in each new shell just to update your prompt.
+
 ## Configuration
 
 Configuration file: `~/.config/cloudctx/config.yaml`

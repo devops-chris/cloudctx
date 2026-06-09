@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-06-09
+
+### Fixed
+- **Shell integration now persists across sessions** — `ctx shell-init` seeds `AWS_PROFILE` when a new shell starts (from `~/.config/cloudctx/aws_current`), so your prompt shows the last-switched profile in every new terminal without having to run `ctx` again. Previously `AWS_PROFILE` was only set after the first `ctx` call in a session. Re-open your shell after upgrading to pick up the new behavior.
+
 ## [0.4.0] - 2026-06-09
 
 ### Added
@@ -137,7 +142,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cross-platform support (macOS, Linux, Windows)
 - Homebrew installation support
 
-[Unreleased]: https://github.com/devops-chris/cloudctx/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/devops-chris/cloudctx/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/devops-chris/cloudctx/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/devops-chris/cloudctx/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/devops-chris/cloudctx/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/devops-chris/cloudctx/compare/v0.2.1...v0.3.0

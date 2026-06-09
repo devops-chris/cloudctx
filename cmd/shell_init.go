@@ -81,20 +81,30 @@ func runShellInit(cmd *cobra.Command, args []string) error {
 
 // shellInitTemplate is valid in both zsh and bash. Placeholders, in order:
 // function name, binary name, state file path.
+//
+// The helper is called both inside the wrapper (so AWS_PROFILE follows a switch)
+// and once at the bottom (so a newly started shell adopts the last-switched
+// profile — otherwise AWS_PROFILE would be empty until the first ctx call).
 const shellInitTemplate = `# cloudctx shell integration. Add to your rc file:
 #   eval "$(%[1]s shell-init)"
 export CLOUDCTX_SHELL_INTEGRATION=1
+
+# Export AWS_PROFILE from the profile cloudctx last switched to.
+_cloudctx_sync_profile() {
+  local _cctx_state="%[3]s"
+  [ -r "$_cctx_state" ] || return 0
+  local _cctx_profile
+  _cctx_profile="$(cat "$_cctx_state" 2>/dev/null)"
+  [ -n "$_cctx_profile" ] && export AWS_PROFILE="$_cctx_profile"
+}
+
 %[1]s() {
   command %[2]s "$@"
   local _cctx_ec=$?
-  local _cctx_state="%[3]s"
-  if [ -r "$_cctx_state" ]; then
-    local _cctx_profile
-    _cctx_profile="$(cat "$_cctx_state" 2>/dev/null)"
-    if [ -n "$_cctx_profile" ]; then
-      export AWS_PROFILE="$_cctx_profile"
-    fi
-  fi
+  _cloudctx_sync_profile
   return $_cctx_ec
 }
+
+# Seed AWS_PROFILE on shell startup so the profile persists across new sessions.
+_cloudctx_sync_profile
 `
