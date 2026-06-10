@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/pterm/pterm"
@@ -56,7 +57,13 @@ func runAWSSync(cmd *cobra.Command, args []string) error {
 		}
 	} else if awsOrg != "" {
 		if _, ok := orgs[awsOrg]; !ok {
+			names := make([]string, 0, len(orgs))
+			for k := range orgs {
+				names = append(names, k)
+			}
+			sort.Strings(names)
 			pterm.Error.Printf("Unknown organization %q\n", awsOrg)
+			pterm.FgGray.Printf("Known orgs: %s (check aws.organizations in config)\n", strings.Join(names, ", "))
 			return nil
 		}
 		toSync = []string{awsOrg}
