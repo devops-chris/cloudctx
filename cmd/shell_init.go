@@ -82,14 +82,18 @@ func runShellInit(cmd *cobra.Command, args []string) error {
 // shellInitTemplate is valid in both zsh and bash. Placeholders, in order:
 // function name, binary name, state file path.
 //
-// The helper is called both inside the wrapper (so AWS_PROFILE follows a switch)
-// and once at the bottom (so a newly started shell adopts the last-switched
-// profile — otherwise AWS_PROFILE would be empty until the first ctx call).
+// Two sync directions:
+//   cloudctx→env: _cloudctx_sync_profile reads aws_current and exports AWS_PROFILE.
+//                 Runs at startup and after every `ctx` command.
+//   env→cloudctx: _cloudctx_env_sync writes AWS_PROFILE back to aws_current when
+//                 they differ. Runs at each prompt via precmd/PROMPT_COMMAND so
+//                 tools like direnv that change AWS_PROFILE on cd are reflected
+//                 in the state file that Starship/Powerline read.
 const shellInitTemplate = `# cloudctx shell integration. Add to your rc file:
 #   eval "$(%[1]s shell-init)"
 export CLOUDCTX_SHELL_INTEGRATION=1
 
-# Export AWS_PROFILE from the profile cloudctx last switched to.
+# cloudctx→env: export AWS_PROFILE from the profile cloudctx last switched to.
 _cloudctx_sync_profile() {
   local _cctx_state="%[3]s"
   [ -r "$_cctx_state" ] || return 0
@@ -98,12 +102,35 @@ _cloudctx_sync_profile() {
   [ -n "$_cctx_profile" ] && export AWS_PROFILE="$_cctx_profile"
 }
 
+# env→cloudctx: if AWS_PROFILE was changed externally (e.g. by direnv),
+# update the cloudctx state file so prompt tools (Starship etc.) stay current.
+_cloudctx_env_sync() {
+  [ -z "$AWS_PROFILE" ] && return 0
+  local _cctx_state="%[3]s"
+  local _cctx_saved
+  _cctx_saved="$(cat "$_cctx_state" 2>/dev/null)"
+  [ "$AWS_PROFILE" = "$_cctx_saved" ] && return 0
+  printf '%%s' "$AWS_PROFILE" > "$_cctx_state"
+}
+
 %[1]s() {
   command %[2]s "$@"
   local _cctx_ec=$?
   _cloudctx_sync_profile
   return $_cctx_ec
 }
+
+# Hook _cloudctx_env_sync into each prompt cycle so tools that change
+# AWS_PROFILE (e.g. direnv) are reflected in the cloudctx state file.
+if [ -n "$ZSH_VERSION" ]; then
+  autoload -Uz add-zsh-hook 2>/dev/null
+  add-zsh-hook precmd _cloudctx_env_sync
+elif [ -n "$BASH_VERSION" ]; then
+  case "$PROMPT_COMMAND" in
+    *_cloudctx_env_sync*) ;;
+    *) PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND; }_cloudctx_env_sync" ;;
+  esac
+fi
 
 # Seed AWS_PROFILE on shell startup so the profile persists across new sessions.
 _cloudctx_sync_profile

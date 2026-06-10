@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-06-10
+
+### Fixed
+- **Shell integration now syncs with direnv** — `ctx shell-init` installs a `precmd`/`PROMPT_COMMAND` hook that writes `AWS_PROFILE` back to the cloudctx state file whenever an external tool (e.g. direnv) changes it. Previously, switching directories in a direnv project left prompt tools (Starship, Powerline) showing the stale cloudctx profile rather than the directory-scoped one. Re-run `eval "$(ctx shell-init)"` or open a new shell to pick up the new behavior.
+
 ## [0.4.1] - 2026-06-09
 
 ### Fixed
