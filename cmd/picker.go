@@ -112,7 +112,7 @@ func runPicker(items []pickItem, maxHeight int) (value string, ok bool) {
 	if err != nil {
 		return "", false
 	}
-	defer area.Stop()
+	defer func() { _ = area.Stop() }()
 	cursor.Hide()
 	defer cursor.Show()
 
