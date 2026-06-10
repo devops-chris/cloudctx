@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-06-10
+
+### Fixed
+- **`aws sync --org` now shows valid org names on error** — when you pass an unknown `--org` value, the error message lists the configured org names so you don't have to go dig through the config file.
+
 ## [0.4.2] - 2026-06-10
 
 ### Fixed
