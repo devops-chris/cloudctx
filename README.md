@@ -150,6 +150,30 @@ See **[Default provider and shortcuts](docs/DEFAULT-PROVIDER-AND-SHORTCUTS.md)**
 
 > **Note:** `-l`, `-c`, `-v` are shorthand for `list`, `current`, `version`. `ls` is an alias for `list`. Use one or the other, not both.
 
+## Shell completion
+
+Tab-complete profile names, subscription names, `--org` values, and subcommands.
+
+**zsh** — add to `~/.zshrc`, then open a new shell:
+
+```zsh
+source <(cloudctx completion zsh)
+```
+
+**bash** — add to `~/.bashrc`, then open a new shell:
+
+```bash
+source <(cloudctx completion bash)
+```
+
+**Permanent install (zsh, macOS Homebrew):**
+
+```zsh
+cloudctx completion zsh > $(brew --prefix)/share/zsh/site-functions/_cloudctx
+```
+
+For fish, PowerShell, or Linux install paths run `cloudctx completion <shell> --help`.
+
 ## Verifying your setup
 
 Run **`cloudctx doctor`** to check that config, default provider, AWS orgs, current profile, and credentials/SSO are correct. Use it anytime you want to confirm things are configured right.
