@@ -15,7 +15,7 @@ import (
 
 // orgPalette assigns distinct colors to orgs (deterministic by sorted name).
 var orgPalette = []lipgloss.Style{
-	lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0097A7", Dark: "#4DD0E1"}),
+	lipgloss.NewStyle().Foreground(ui.ColorCyan),
 	lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#7B1FA2", Dark: "#CE93D8"}),
 	lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#1565C0", Dark: "#90CAF9"}),
 	lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#00838F", Dark: "#80DEEA"}),
