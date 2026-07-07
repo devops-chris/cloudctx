@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/huh/spinner"
-	"github.com/devops-chris/cloudctx/internal/ui"
+	"github.com/devops-chris/clihq/ui"
 	"github.com/spf13/cobra"
 )
 

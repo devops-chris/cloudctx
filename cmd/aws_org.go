@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/huh"
+	"github.com/devops-chris/clihq/ui"
 	"github.com/devops-chris/cloudctx/internal/aws"
 	"github.com/devops-chris/cloudctx/internal/config"
-	"github.com/devops-chris/cloudctx/internal/ui"
 	"github.com/spf13/cobra"
 )
 

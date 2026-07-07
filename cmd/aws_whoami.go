@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/devops-chris/cloudctx/internal/ui"
+	"github.com/devops-chris/clihq/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -52,7 +52,7 @@ func runAWSWhoami(cmd *cobra.Command, args []string) error {
 	currentProfile := os.Getenv("AWS_PROFILE")
 
 	fmt.Println()
-	fmt.Println(ui.Banner())
+	fmt.Println(ui.Banner("cloudctx", "cloud context switcher"))
 	fmt.Println()
 	fmt.Println(ui.SectionHeader("AWS Identity"))
 	fmt.Println()

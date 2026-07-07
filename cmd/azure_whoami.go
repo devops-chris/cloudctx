@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/devops-chris/clihq/ui"
 	"github.com/devops-chris/cloudctx/internal/azure"
-	"github.com/devops-chris/cloudctx/internal/ui"
 	"github.com/spf13/cobra"
 )
 

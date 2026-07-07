@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/devops-chris/clihq/ui"
 	"github.com/devops-chris/cloudctx/internal/config"
-	"github.com/devops-chris/cloudctx/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +28,7 @@ func init() {
 
 func runDoctor(cmd *cobra.Command, args []string) error {
 	fmt.Println()
-	fmt.Println(ui.Banner())
+	fmt.Println(ui.Banner("cloudctx", "cloud context switcher"))
 
 	// ── Config ───────────────────────────────────────────────────────────────
 

@@ -8,7 +8,7 @@ import (
 	"atomicgo.dev/keyboard"
 	"atomicgo.dev/keyboard/keys"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/devops-chris/cloudctx/internal/ui"
+	"github.com/devops-chris/clihq/ui"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 )
 
@@ -22,9 +22,9 @@ type pickItem struct {
 }
 
 var (
-	pickerSearchStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#9B9B9B", Dark: "#5C5C5C"})
-	pickerCursorStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#874BFD", Dark: "#7D56F4"}).Bold(true)
-	pickerCountStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#9B9B9B", Dark: "#5C5C5C"})
+	pickerSearchStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#9B9B9B", Dark: "#5C5C5C"})
+	pickerCursorStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#874BFD", Dark: "#7D56F4"}).Bold(true)
+	pickerCountStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#9B9B9B", Dark: "#5C5C5C"})
 )
 
 // matchesQuery reports whether target matches query using fzf-style semantics:

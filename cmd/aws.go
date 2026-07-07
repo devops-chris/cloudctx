@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/devops-chris/clihq/ui"
 	"github.com/devops-chris/cloudctx/internal/aws"
 	"github.com/devops-chris/cloudctx/internal/provider"
-	"github.com/devops-chris/cloudctx/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -211,7 +211,7 @@ func listAWS(p *aws.Provider) error {
 	}
 
 	fmt.Println()
-	fmt.Println(ui.Banner())
+	fmt.Println(ui.Banner("cloudctx", "cloud context switcher"))
 	fmt.Println()
 	headerTitle := "AWS Profiles"
 	if awsOrg != "" && awsOrg != "all" {
