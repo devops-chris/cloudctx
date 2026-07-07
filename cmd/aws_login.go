@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/pterm/pterm"
+	"github.com/devops-chris/cloudctx/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -30,7 +30,6 @@ func init() {
 }
 
 func runAWSLogin(cmd *cobra.Command, args []string) error {
-	// If --org passed, use it; else log in to the org of the profile in context
 	orgKey := awsOrg
 	if orgKey == "" {
 		p := getAWSListProvider()
@@ -42,31 +41,29 @@ func runAWSLogin(cmd *cobra.Command, args []string) error {
 		orgKey = cfg.AWSDefaultOrg()
 	}
 	if orgKey == "" {
-		pterm.Error.Println("No AWS organization configured")
-		pterm.FgGray.Println("Run 'cloudctx aws init' or add aws.organizations in config")
+		fmt.Println(ui.Error("No AWS organization configured"))
+		fmt.Println(ui.Subtle("Run 'cloudctx aws init' or add aws.organizations in config"))
 		return nil
 	}
 
 	p, ok := getAWSProviderForOrg(orgKey)
 	if !ok {
-		pterm.Error.Printf("Unknown organization %q\n", orgKey)
-		pterm.FgGray.Println("Check aws.organizations in your config")
+		fmt.Println(ui.Errorf("Unknown organization %q", orgKey))
+		fmt.Println(ui.Subtle("Check aws.organizations in your config"))
 		return nil
 	}
 
-	pterm.Info.Printf("Opening browser for AWS SSO login (%s)...\n", orgKey)
-	pterm.FgGray.Println("Complete the authentication in your browser")
+	fmt.Println(ui.Infof("Opening browser for AWS SSO login (%s)...", orgKey))
+	fmt.Println(ui.Subtle("Complete the authentication in your browser"))
 	fmt.Println()
 
-	err := p.Login()
-	if err != nil {
-		pterm.Error.Println("Login failed")
+	if err := p.Login(); err != nil {
+		fmt.Println(ui.Error("Login failed"))
 		return err
 	}
 
-	pterm.Success.Printf("Successfully logged in to AWS SSO (%s)\n", orgKey)
-	pterm.FgGray.Println("Run 'cloudctx aws sync' to update your profiles")
+	fmt.Println(ui.Successf("Successfully logged in to AWS SSO (%s)", orgKey))
+	fmt.Println(ui.Subtle("Run 'cloudctx aws sync' to update your profiles"))
 
 	return nil
 }
-

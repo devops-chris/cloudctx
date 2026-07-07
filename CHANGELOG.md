@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-07
+
+### Changed
+- **UI reskin — pterm replaced with Charm/Lipgloss** — all output now uses the same purple palette, rounded table borders, and huh interactive forms as platformr. The `internal/ui` package provides a shared style layer (`Success`, `Error`, `Warning`, `Info`, `Subtle`, `Highlight`, `CheckPass`, `CheckFail`, `CheckWarn`) so lockr and future tools can stay visually consistent.
+- **`doctor` now uses a checklist layout** — each check renders as `✓ / ✗ / ⚠` with indented hints instead of tables, matching platformr's doctor style.
+- **`aws -l`, `aws whoami` show the cloudctx banner** — the rounded border header box appears at the top of output-heavy commands.
+- **Interactive inputs use huh forms** — `aws init` and `org add` now use the themed huh form components instead of pterm text prompts.
+- **`aws sync` uses a huh spinner** — the sync animation matches platformr's spinner style.
+
 ## [0.4.3] - 2026-06-10
 
 ### Fixed

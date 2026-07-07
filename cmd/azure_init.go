@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/pterm/pterm"
+	"github.com/devops-chris/cloudctx/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -20,11 +20,10 @@ func init() {
 
 func runAzureInit(cmd *cobra.Command, args []string) error {
 	fmt.Println()
-	pterm.Info.Println("No initialization needed for Azure!")
+	fmt.Println(ui.Info("No initialization needed for Azure!"))
 	fmt.Println()
-	pterm.FgGray.Println("Azure uses the Azure CLI for authentication.")
-	pterm.FgGray.Println("Just run 'cloudctx azure login' to authenticate.")
+	fmt.Println(ui.Subtle("Azure uses the Azure CLI for authentication."))
+	fmt.Println(ui.Subtle("Just run 'cloudctx azure login' to authenticate."))
 	fmt.Println()
 	return nil
 }
-

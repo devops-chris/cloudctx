@@ -7,9 +7,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/charmbracelet/huh"
 	"github.com/devops-chris/cloudctx/internal/aws"
 	"github.com/devops-chris/cloudctx/internal/config"
-	"github.com/pterm/pterm"
+	"github.com/devops-chris/cloudctx/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -99,63 +100,72 @@ func runAWSOrgAdd(cmd *cobra.Command, args []string) error {
 	if len(args) >= 1 {
 		orgName = strings.TrimSpace(strings.ToLower(args[0]))
 	}
+
 	if orgName == "" {
-		pterm.Info.Println("Enter a short name for this organization (e.g. work, personal)")
-		pterm.FgGray.Println("Used with: cloudctx aws login --org " + pterm.Cyan("<name>"))
 		fmt.Println()
-		entered, _ := pterm.DefaultInteractiveTextInput.Show("Org name")
+		var entered string
+		err := huh.NewForm(huh.NewGroup(
+			huh.NewInput().
+				Title("Org name").
+				Description("Short name for this organization (e.g. work, personal)").
+				Value(&entered),
+		)).WithTheme(ui.Theme()).Run()
+		if err != nil {
+			return err
+		}
 		orgName = strings.TrimSpace(strings.ToLower(entered))
 		if orgName == "" {
-			pterm.Error.Println("Org name is required")
+			fmt.Println(ui.Error("Org name is required"))
 			return nil
 		}
 	}
 
-	// Disallow slash so profile names stay clean
 	if strings.Contains(orgName, "/") || strings.Contains(orgName, " ") {
-		pterm.Error.Println("Org name cannot contain '/' or spaces")
+		fmt.Println(ui.Error("Org name cannot contain '/' or spaces"))
 		return nil
 	}
 
 	orgs := cfg.AWSOrgs()
 	if orgs != nil {
 		if _, exists := orgs[orgName]; exists {
-			pterm.Error.Printf("Organization %q already exists\n", orgName)
+			fmt.Println(ui.Errorf("Organization %q already exists", orgName))
 			return nil
 		}
 	}
 
-	fmt.Println()
-	pterm.Info.Printf("Adding organization %q\n", orgName)
-	pterm.FgGray.Println("Example SSO URL: https://your-org.awsapps.com/start")
-	fmt.Println()
+	ssoURL := ""
+	ssoRegion := "us-east-1"
+	defaultRegion := "us-east-1"
 
-	ssoURL, _ := pterm.DefaultInteractiveTextInput.
-		WithDefaultValue("").
-		Show("SSO Start URL")
+	fmt.Println()
+	err := huh.NewForm(huh.NewGroup(
+		huh.NewInput().
+			Title("SSO Start URL").
+			Description("Example: https://your-org.awsapps.com/start").
+			Value(&ssoURL),
+		huh.NewInput().
+			Title("SSO Region").
+			Value(&ssoRegion),
+		huh.NewInput().
+			Title("Default region for profiles").
+			Value(&defaultRegion),
+	)).WithTheme(ui.Theme()).Run()
+	if err != nil {
+		return err
+	}
+
 	ssoURL = strings.TrimSpace(ssoURL)
 	if ssoURL == "" {
-		pterm.Error.Println("SSO Start URL is required")
+		fmt.Println(ui.Error("SSO Start URL is required"))
 		return nil
 	}
-
-	ssoRegion, _ := pterm.DefaultInteractiveTextInput.
-		WithDefaultValue("us-east-1").
-		Show("SSO Region")
-	ssoRegion = strings.TrimSpace(ssoRegion)
-	if ssoRegion == "" {
+	if strings.TrimSpace(ssoRegion) == "" {
 		ssoRegion = "us-east-1"
 	}
-
-	defaultRegion, _ := pterm.DefaultInteractiveTextInput.
-		WithDefaultValue("us-east-1").
-		Show("Default region for profiles")
-	defaultRegion = strings.TrimSpace(defaultRegion)
-	if defaultRegion == "" {
+	if strings.TrimSpace(defaultRegion) == "" {
 		defaultRegion = "us-east-1"
 	}
 
-	// Ensure we have an organizations map (convert from legacy if needed)
 	if cfg.AWS.Organizations == nil {
 		cfg.AWS.Organizations = make(map[string]config.AWSOrgConfig)
 		if cfg.AWS.SSOStartURL != "" {
@@ -180,16 +190,17 @@ func runAWSOrgAdd(cmd *cobra.Command, args []string) error {
 		configPath = config.ConfigPath()
 	}
 	if err := config.WriteConfig(configPath, cfg); err != nil {
-		pterm.Error.Printf("Failed to write config: %v\n", err)
+		fmt.Println(ui.Errorf("Failed to write config: %v", err))
 		return err
 	}
 
-	pterm.Success.Printf("Added organization %q to %s\n", orgName, configPath)
 	fmt.Println()
-	pterm.Info.Println("Next steps:")
-	pterm.FgCyan.Printf("  cloudctx aws login --org %s\n", orgName)
-	pterm.FgCyan.Printf("  cloudctx aws sync --org %s\n", orgName)
-	pterm.FgGray.Println("Or sync all orgs: cloudctx aws sync --org all")
+	fmt.Println(ui.Successf("Added organization %q to %s", orgName, configPath))
+	fmt.Println()
+	fmt.Println(ui.Info("Next steps:"))
+	fmt.Println(ui.Cyan("  cloudctx aws login --org " + orgName))
+	fmt.Println(ui.Cyan("  cloudctx aws sync --org " + orgName))
+	fmt.Println(ui.Subtle("Or sync all orgs: cloudctx aws sync --org all"))
 	fmt.Println()
 	return nil
 }
@@ -199,24 +210,30 @@ func runAWSOrgRename(cmd *cobra.Command, args []string) error {
 	newName := ""
 	orgs := cfg.AWSOrgs()
 	if len(orgs) == 0 {
-		pterm.Error.Println("No organizations configured")
-		pterm.FgGray.Println("Add one with: cloudctx org add [name]")
+		fmt.Println(ui.Error("No organizations configured"))
+		fmt.Println(ui.Subtle("Add one with: cloudctx org add [name]"))
 		return nil
 	}
 
 	if len(args) == 0 {
-		// No args: if single org, prompt for new name; otherwise show usage
 		if len(orgs) == 1 {
 			for k := range orgs {
 				oldName = k
 				break
 			}
-			pterm.Info.Printf("You have one org %q. Enter the new name (e.g. work, personal):\n", oldName)
 			fmt.Println()
-			entered, _ := pterm.DefaultInteractiveTextInput.Show("New org name")
-			newName = strings.TrimSpace(strings.ToLower(entered))
+			err := huh.NewForm(huh.NewGroup(
+				huh.NewInput().
+					Title("New org name").
+					Description(fmt.Sprintf("Renaming %q — enter the new name (e.g. work, personal)", oldName)).
+					Value(&newName),
+			)).WithTheme(ui.Theme()).Run()
+			if err != nil {
+				return err
+			}
+			newName = strings.TrimSpace(strings.ToLower(newName))
 			if newName == "" {
-				pterm.Error.Println("Org name is required")
+				fmt.Println(ui.Error("Org name is required"))
 				return nil
 			}
 		} else {
@@ -225,17 +242,17 @@ func runAWSOrgRename(cmd *cobra.Command, args []string) error {
 				names = append(names, k)
 			}
 			sort.Strings(names)
-			pterm.Error.Println("You have multiple orgs; specify old and new name:")
-			pterm.FgGray.Printf("  Your orgs: %s\n", strings.Join(names, ", "))
-			pterm.FgGray.Println("  cloudctx org rename <old-name> <new-name>")
-			pterm.FgGray.Printf("Example: cloudctx org rename %s work\n", names[0])
+			fmt.Println(ui.Error("You have multiple orgs; specify old and new name:"))
+			fmt.Println(ui.Subtlef("  Your orgs: %s", strings.Join(names, ", ")))
+			fmt.Println(ui.Subtle("  cloudctx org rename <old-name> <new-name>"))
+			fmt.Println(ui.Subtlef("Example: cloudctx org rename %s work", names[0]))
 			return nil
 		}
 	} else if len(args) == 1 {
 		newName = strings.TrimSpace(strings.ToLower(args[0]))
 		if newName == "" {
-			pterm.Error.Println("Usage: cloudctx org rename <new-name>   (when you have one org)")
-			pterm.FgGray.Println("   or: cloudctx org rename <old-name> <new-name>")
+			fmt.Println(ui.Error("Usage: cloudctx org rename <new-name>   (when you have one org)"))
+			fmt.Println(ui.Subtle("   or: cloudctx org rename <old-name> <new-name>"))
 			return nil
 		}
 		if len(orgs) > 1 {
@@ -244,9 +261,9 @@ func runAWSOrgRename(cmd *cobra.Command, args []string) error {
 				names = append(names, k)
 			}
 			sort.Strings(names)
-			pterm.Error.Println("You have multiple orgs; specify both old and new name:")
-			pterm.FgGray.Printf("  Your orgs: %s\n", strings.Join(names, ", "))
-			pterm.FgGray.Println("  cloudctx org rename <old-name> " + newName)
+			fmt.Println(ui.Error("You have multiple orgs; specify both old and new name:"))
+			fmt.Println(ui.Subtlef("  Your orgs: %s", strings.Join(names, ", ")))
+			fmt.Println(ui.Subtle("  cloudctx org rename <old-name> " + newName))
 			return nil
 		}
 		for k := range orgs {
@@ -257,28 +274,27 @@ func runAWSOrgRename(cmd *cobra.Command, args []string) error {
 		oldName = strings.TrimSpace(strings.ToLower(args[0]))
 		newName = strings.TrimSpace(strings.ToLower(args[1]))
 	}
+
 	if oldName == "" || newName == "" {
-		pterm.Error.Println("Usage: cloudctx org rename <new-name>   (single org)")
-		pterm.FgGray.Println("   or: cloudctx org rename <old-name> <new-name>")
-		pterm.FgGray.Println("Example: cloudctx org rename work   or   cloudctx org rename default work")
+		fmt.Println(ui.Error("Usage: cloudctx org rename <new-name>   (single org)"))
+		fmt.Println(ui.Subtle("   or: cloudctx org rename <old-name> <new-name>"))
+		fmt.Println(ui.Subtle("Example: cloudctx org rename work   or   cloudctx org rename default work"))
 		return nil
 	}
 	if strings.Contains(newName, "/") || strings.Contains(newName, " ") {
-		pterm.Error.Println("New org name cannot contain '/' or spaces")
+		fmt.Println(ui.Error("New org name cannot contain '/' or spaces"))
 		return nil
 	}
-
 	if _, ok := orgs[oldName]; !ok {
-		pterm.Error.Printf("Organization %q not found\n", oldName)
-		pterm.FgGray.Println("Use 'cloudctx list' or 'cloudctx aws -l' to see orgs, or check your config")
+		fmt.Println(ui.Errorf("Organization %q not found", oldName))
+		fmt.Println(ui.Subtle("Use 'cloudctx list' or 'cloudctx aws -l' to see orgs, or check your config"))
 		return nil
 	}
 	if _, exists := orgs[newName]; exists && oldName != newName {
-		pterm.Error.Printf("Organization %q already exists\n", newName)
+		fmt.Println(ui.Errorf("Organization %q already exists", newName))
 		return nil
 	}
 
-	// If renaming "default" and we only have legacy config, migrate to organizations first
 	if oldName == "default" && cfg.AWS.Organizations == nil && cfg.AWS.SSOStartURL != "" {
 		cfg.AWS.Organizations = map[string]config.AWSOrgConfig{
 			"default": {
@@ -292,7 +308,6 @@ func runAWSOrgRename(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Update cloudctx config
 	cfg.AWS.Organizations[newName] = cfg.AWS.Organizations[oldName]
 	delete(cfg.AWS.Organizations, oldName)
 	if cfg.AWS.DefaultOrganization == oldName {
@@ -304,49 +319,47 @@ func runAWSOrgRename(cmd *cobra.Command, args []string) error {
 		configPath = config.ConfigPath()
 	}
 	if err := config.WriteConfig(configPath, cfg); err != nil {
-		pterm.Error.Printf("Failed to write config: %v\n", err)
+		fmt.Println(ui.Errorf("Failed to write config: %v", err))
 		return err
 	}
 
-	// Update ~/.aws/config and state
 	home, _ := os.UserHomeDir()
 	awsConfigPath := filepath.Join(home, ".aws", "config")
 	stateDir := config.ConfigDir()
 	if err := aws.RenameOrg(awsConfigPath, stateDir, oldName, newName); err != nil {
-		pterm.Error.Printf("Failed to update AWS config: %v\n", err)
+		fmt.Println(ui.Errorf("Failed to update AWS config: %v", err))
 		return err
 	}
 
-	pterm.Success.Printf("Renamed organization %q to %q\n", oldName, newName)
-	pterm.FgGray.Println("You may need to run: cloudctx login --org " + newName)
+	fmt.Println(ui.Successf("Renamed organization %q to %q", oldName, newName))
+	fmt.Println(ui.Subtle("You may need to run: cloudctx login --org " + newName))
 	fmt.Println()
 	return nil
 }
 
 func runAWSOrgRemove(cmd *cobra.Command, args []string) error {
 	if len(args) < 1 {
-		pterm.Error.Println("Usage: cloudctx aws org remove <name>")
-		pterm.FgGray.Println("Example: cloudctx aws org remove personal")
+		fmt.Println(ui.Error("Usage: cloudctx aws org remove <name>"))
+		fmt.Println(ui.Subtle("Example: cloudctx aws org remove personal"))
 		return nil
 	}
 	orgName := strings.TrimSpace(strings.ToLower(args[0]))
 	if orgName == "" {
-		pterm.Error.Println("Org name is required")
+		fmt.Println(ui.Error("Org name is required"))
 		return nil
 	}
 
 	orgs := cfg.AWSOrgs()
 	if len(orgs) == 0 {
-		pterm.Error.Println("No organizations configured")
+		fmt.Println(ui.Error("No organizations configured"))
 		return nil
 	}
 	if _, ok := orgs[orgName]; !ok {
-		pterm.Error.Printf("Organization %q not found\n", orgName)
-		pterm.FgGray.Println("Use 'cloudctx aws org add' to add orgs, or check your config")
+		fmt.Println(ui.Errorf("Organization %q not found", orgName))
+		fmt.Println(ui.Subtle("Use 'cloudctx aws org add' to add orgs, or check your config"))
 		return nil
 	}
 
-	// Remove from cloudctx config
 	if cfg.AWS.Organizations != nil {
 		delete(cfg.AWS.Organizations, orgName)
 		if cfg.AWS.DefaultOrganization == orgName {
@@ -358,7 +371,6 @@ func runAWSOrgRemove(cmd *cobra.Command, args []string) error {
 		}
 	}
 	if orgName == "default" && cfg.AWS.Organizations == nil {
-		// Legacy config: clear the top-level AWS fields
 		cfg.AWS.SSOStartURL = ""
 		cfg.AWS.SSORegion = ""
 		cfg.AWS.DefaultRegion = ""
@@ -369,7 +381,7 @@ func runAWSOrgRemove(cmd *cobra.Command, args []string) error {
 		configPath = config.ConfigPath()
 	}
 	if err := config.WriteConfig(configPath, cfg); err != nil {
-		pterm.Error.Printf("Failed to write config: %v\n", err)
+		fmt.Println(ui.Errorf("Failed to write config: %v", err))
 		return err
 	}
 
@@ -377,11 +389,11 @@ func runAWSOrgRemove(cmd *cobra.Command, args []string) error {
 	awsConfigPath := filepath.Join(home, ".aws", "config")
 	stateDir := config.ConfigDir()
 	if err := aws.RemoveOrg(awsConfigPath, stateDir, orgName); err != nil {
-		pterm.Error.Printf("Failed to update AWS config: %v\n", err)
+		fmt.Println(ui.Errorf("Failed to update AWS config: %v", err))
 		return err
 	}
 
-	pterm.Success.Printf("Removed organization %q and its profiles\n", orgName)
+	fmt.Println(ui.Successf("Removed organization %q and its profiles", orgName))
 	fmt.Println()
 	return nil
 }
@@ -392,15 +404,15 @@ func runAWSOrgCleanCredentials(cmd *cobra.Command, args []string) error {
 	awsCredsPath := filepath.Join(home, ".aws", "credentials")
 	removed, err := aws.CleanStaleCredentials(awsConfigPath, awsCredsPath)
 	if err != nil {
-		pterm.Error.Printf("Failed: %v\n", err)
+		fmt.Println(ui.Errorf("Failed: %v", err))
 		return err
 	}
 	if removed == 0 {
-		pterm.Info.Println("No stale credential sections found")
+		fmt.Println(ui.Info("No stale credential sections found"))
 		return nil
 	}
-	pterm.Success.Printf("Removed %d stale section(s) from ~/.aws/credentials\n", removed)
-	pterm.FgGray.Println("Re-run your list or picker to confirm the ghost entries are gone.")
+	fmt.Println(ui.Successf("Removed %d stale section(s) from ~/.aws/credentials", removed))
+	fmt.Println(ui.Subtle("Re-run your list or picker to confirm the ghost entries are gone."))
 	fmt.Println()
 	return nil
 }

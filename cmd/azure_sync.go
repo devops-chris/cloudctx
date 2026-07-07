@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/pterm/pterm"
+	"github.com/devops-chris/cloudctx/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -20,11 +20,10 @@ func init() {
 
 func runAzureSync(cmd *cobra.Command, args []string) error {
 	fmt.Println()
-	pterm.Info.Println("Sync is not needed for Azure!")
+	fmt.Println(ui.Info("Sync is not needed for Azure!"))
 	fmt.Println()
-	pterm.FgGray.Println("Unlike AWS, Azure subscriptions are fetched live from Azure CLI.")
-	pterm.FgGray.Println("Just run 'cloudctx azure' to see and switch subscriptions.")
+	fmt.Println(ui.Subtle("Unlike AWS, Azure subscriptions are fetched live from Azure CLI."))
+	fmt.Println(ui.Subtle("Just run 'cloudctx azure' to see and switch subscriptions."))
 	fmt.Println()
 	return nil
 }
-

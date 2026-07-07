@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/devops-chris/cloudctx/internal/azure"
-	"github.com/pterm/pterm"
+	"github.com/devops-chris/cloudctx/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -28,8 +28,8 @@ func runAzureWhoami(cmd *cobra.Command, args []string) error {
 
 	identity, err := p.WhoAmI()
 	if err != nil {
-		pterm.Error.Println("Failed to get identity")
-		pterm.FgGray.Println("Run 'cloudctx azure login' to authenticate")
+		fmt.Println(ui.Error("Failed to get identity"))
+		fmt.Println(ui.Subtle("Run 'cloudctx azure login' to authenticate"))
 		return err
 	}
 
@@ -40,20 +40,16 @@ func runAzureWhoami(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println()
-	pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgBlue)).
-		WithTextStyle(pterm.NewStyle(pterm.FgLightWhite)).
-		Println("Azure Identity")
+	fmt.Println(ui.SectionHeader("Azure Identity"))
+	fmt.Println()
 
-	tableData := pterm.TableData{
-		{"Field", "Value"},
+	rows := [][]string{
 		{"Subscription", identity.AccountName},
 		{"Subscription ID", identity.AccountID},
 		{"User", identity.UserID},
 	}
-
-	_ = pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+	fmt.Println(ui.Table([]string{"Field", "Value"}, rows))
 	fmt.Println()
 
 	return nil
 }
-

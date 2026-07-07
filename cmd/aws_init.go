@@ -5,8 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/charmbracelet/huh"
 	"github.com/devops-chris/cloudctx/internal/config"
-	"github.com/pterm/pterm"
+	"github.com/devops-chris/cloudctx/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -31,50 +32,41 @@ func init() {
 
 func runAWSInit(cmd *cobra.Command, args []string) error {
 	fmt.Println()
-	pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgBlue)).
-		WithTextStyle(pterm.NewStyle(pterm.FgLightWhite)).
-		Println("AWS SSO Configuration")
+	fmt.Println(ui.SectionHeader("AWS SSO Configuration"))
 	fmt.Println()
 
-	// SSO Start URL
-	pterm.Info.Println("Enter your AWS SSO portal URL")
-	pterm.FgGray.Println("Example: https://your-org.awsapps.com/start")
-	fmt.Println()
+	ssoURL := cfg.AWS.SSOStartURL
+	ssoRegion := "us-east-1"
+	defaultRegion := "us-east-1"
 
-	ssoURL, _ := pterm.DefaultInteractiveTextInput.
-		WithDefaultValue(cfg.AWS.SSOStartURL).
-		Show("SSO Start URL")
+	err := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("SSO Start URL").
+				Description("Example: https://your-org.awsapps.com/start").
+				Value(&ssoURL),
+			huh.NewInput().
+				Title("SSO Region").
+				Value(&ssoRegion),
+			huh.NewInput().
+				Title("Default region for profiles").
+				Value(&defaultRegion),
+		),
+	).WithTheme(ui.Theme()).Run()
+	if err != nil {
+		return err
+	}
 
 	if ssoURL == "" {
-		pterm.Error.Println("SSO Start URL is required")
+		fmt.Println(ui.Error("SSO Start URL is required"))
 		return nil
 	}
 
-	// SSO Region
-	fmt.Println()
-	pterm.Info.Println("Enter your AWS SSO region")
-	fmt.Println()
-
-	ssoRegion, _ := pterm.DefaultInteractiveTextInput.
-		WithDefaultValue("us-east-1").
-		Show("SSO Region")
-
-	// Default Region
-	fmt.Println()
-	pterm.Info.Println("Enter default AWS region for profiles")
-	fmt.Println()
-
-	defaultRegion, _ := pterm.DefaultInteractiveTextInput.
-		WithDefaultValue("us-east-1").
-		Show("Default Region")
-
-	// Create config directory
 	configDir := config.ConfigDir()
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
-	// Write config file
 	configPath := filepath.Join(configDir, "config.yaml")
 	configContent := fmt.Sprintf(`# cloudctx configuration
 
@@ -98,15 +90,14 @@ aws:
 	}
 
 	fmt.Println()
-	pterm.Success.Printf("Configuration saved to %s\n", configPath)
+	fmt.Println(ui.Successf("Configuration saved to %s", configPath))
 	fmt.Println()
-	pterm.Info.Println("Next steps:")
-	pterm.FgCyan.Println("  1. cloudctx aws login    # Authenticate with SSO")
-	pterm.FgCyan.Println("  2. cloudctx aws sync     # Fetch available profiles")
-	pterm.FgCyan.Println("  3. cloudctx aws          # Select a profile")
-	pterm.FgGray.Println("To add another AWS org later: cloudctx aws org add")
+	fmt.Println(ui.Info("Next steps:"))
+	fmt.Println(ui.Cyan("  1. cloudctx aws login    # Authenticate with SSO"))
+	fmt.Println(ui.Cyan("  2. cloudctx aws sync     # Fetch available profiles"))
+	fmt.Println(ui.Cyan("  3. cloudctx aws          # Select a profile"))
+	fmt.Println(ui.Subtle("To add another AWS org later: cloudctx aws org add"))
 	fmt.Println()
 
 	return nil
 }
-

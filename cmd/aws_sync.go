@@ -5,7 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pterm/pterm"
+	"github.com/charmbracelet/huh/spinner"
+	"github.com/devops-chris/cloudctx/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -37,15 +38,15 @@ func init() {
 func runAWSSync(cmd *cobra.Command, args []string) error {
 	orgs := cfg.AWSOrgs()
 	if len(orgs) == 0 {
-		pterm.Error.Println("No AWS organization configured")
+		fmt.Println(ui.Error("No AWS organization configured"))
 		fmt.Println()
-		pterm.Info.Println("Configure it in ~/.config/cloudctx/config.yaml:")
+		fmt.Println(ui.Info("Configure it in ~/.config/cloudctx/config.yaml:"))
 		fmt.Println()
-		pterm.FgCyan.Println("  aws:")
-		pterm.FgCyan.Println("    sso_start_url: https://your-org.awsapps.com/start")
-		pterm.FgCyan.Println("    sso_region: us-east-1")
+		fmt.Println(ui.Cyan("  aws:"))
+		fmt.Println(ui.Cyan("    sso_start_url: https://your-org.awsapps.com/start"))
+		fmt.Println(ui.Cyan("    sso_region: us-east-1"))
 		fmt.Println()
-		pterm.Info.Println("Or add aws.organizations for multi-org.")
+		fmt.Println(ui.Subtle("Or add aws.organizations for multi-org."))
 		return nil
 	}
 
@@ -62,15 +63,15 @@ func runAWSSync(cmd *cobra.Command, args []string) error {
 				names = append(names, k)
 			}
 			sort.Strings(names)
-			pterm.Error.Printf("Unknown organization %q\n", awsOrg)
-			pterm.FgGray.Printf("Known orgs: %s (check aws.organizations in config)\n", strings.Join(names, ", "))
+			fmt.Println(ui.Errorf("Unknown organization %q", awsOrg))
+			fmt.Println(ui.Subtlef("Known orgs: %s (check aws.organizations in config)", strings.Join(names, ", ")))
 			return nil
 		}
 		toSync = []string{awsOrg}
 	} else {
 		def := cfg.AWSDefaultOrg()
 		if def == "" {
-			pterm.Error.Println("No default organization; use --org <name> or --org all")
+			fmt.Println(ui.Error("No default organization; use --org <name> or --org all"))
 			return nil
 		}
 		toSync = []string{def}
@@ -82,15 +83,17 @@ func runAWSSync(cmd *cobra.Command, args []string) error {
 		if !ok {
 			continue
 		}
-		spinner, _ := pterm.DefaultSpinner.Start("Syncing " + orgKey + " from AWS SSO...")
-		err := p.Sync()
-		if err != nil {
-			spinner.Fail("Sync failed for " + orgKey)
-			pterm.FgGray.Println("Try running 'cloudctx aws login --org " + orgKey + "' first")
+		var syncErr error
+		_ = spinner.New().
+			Title("Syncing " + orgKey + " from AWS SSO...").
+			Action(func() { syncErr = p.Sync() }).
+			Run()
+		if syncErr != nil {
+			fmt.Println(ui.Error("Sync failed for " + orgKey))
+			fmt.Println(ui.Subtle("Try running 'cloudctx aws login --org " + orgKey + "' first"))
 			failed = append(failed, orgKey)
 			continue
 		}
-		_ = spinner.Stop()
 		contexts, err := p.ListContexts()
 		if err != nil {
 			failed = append(failed, orgKey)
@@ -102,16 +105,15 @@ func runAWSSync(cmd *cobra.Command, args []string) error {
 				count++
 			}
 		}
-		pterm.Success.Printf("Synced %d profiles for %s\n", count, orgKey)
+		fmt.Println(ui.Successf("Synced %d profiles for %s", count, orgKey))
 	}
 
 	fmt.Println()
 	if len(failed) > 0 {
-		pterm.Warning.Printf("Failed for %d org(s): %s\n", len(failed), strings.Join(failed, ", "))
-		pterm.FgGray.Println("Run 'cloudctx aws login --org <name>' for each, then sync again.")
+		fmt.Println(ui.Warningf("Failed for %d org(s): %s", len(failed), strings.Join(failed, ", ")))
+		fmt.Println(ui.Subtle("Run 'cloudctx aws login --org <name>' for each, then sync again."))
 		return fmt.Errorf("sync failed for: %s", strings.Join(failed, ", "))
 	}
-	pterm.FgGray.Println("Run 'cloudctx aws' to select a profile")
+	fmt.Println(ui.Subtle("Run 'cloudctx aws' to select a profile"))
 	return nil
 }
-

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/pterm/pterm"
+	"github.com/devops-chris/cloudctx/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -35,8 +35,8 @@ func runAWSWhoami(cmd *cobra.Command, args []string) error {
 
 	identity, err := p.WhoAmI()
 	if err != nil {
-		pterm.Error.Println("Failed to get identity")
-		pterm.FgGray.Println("Are you logged in? Try 'cloudctx aws login'")
+		fmt.Println(ui.Error("Failed to get identity"))
+		fmt.Println(ui.Subtle("Are you logged in? Try 'cloudctx aws login'"))
 		return err
 	}
 
@@ -49,29 +49,26 @@ func runAWSWhoami(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Get current profile
 	currentProfile := os.Getenv("AWS_PROFILE")
 
 	fmt.Println()
-	pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgDarkGray)).
-		WithTextStyle(pterm.NewStyle(pterm.FgLightWhite)).
-		Println("AWS Identity")
-
-	tableData := pterm.TableData{
-		{"Property", "Value"},
-	}
-
-	if currentProfile != "" {
-		tableData = append(tableData, []string{"Profile", pterm.FgCyan.Sprint(currentProfile)})
-	}
-	tableData = append(tableData, []string{"Account", identity.AccountID})
-	tableData = append(tableData, []string{"User ID", identity.UserID})
-	tableData = append(tableData, []string{"ARN", identity.ARN})
-	tableData = append(tableData, []string{"Region", identity.Region})
-
-	_ = pterm.DefaultTable.WithHasHeader().WithBoxed().WithData(tableData).Render()
+	fmt.Println(ui.Banner())
+	fmt.Println()
+	fmt.Println(ui.SectionHeader("AWS Identity"))
 	fmt.Println()
 
+	headers := []string{"Property", "Value"}
+	var rows [][]string
+	if currentProfile != "" {
+		rows = append(rows, []string{"Profile", ui.Cyan(currentProfile)})
+	}
+	rows = append(rows,
+		[]string{"Account", identity.AccountID},
+		[]string{"User ID", identity.UserID},
+		[]string{"ARN", identity.ARN},
+		[]string{"Region", identity.Region},
+	)
+
+	fmt.Println(ui.Table(headers, rows))
 	return nil
 }
-

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/devops-chris/cloudctx/internal/azure"
-	"github.com/pterm/pterm"
+	"github.com/devops-chris/cloudctx/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -23,18 +23,17 @@ func runAzureLogin(cmd *cobra.Command, args []string) error {
 	p := azure.NewProvider(cfg.Azure.DefaultLocation)
 
 	fmt.Println()
-	pterm.Info.Println("Opening browser for Azure login...")
+	fmt.Println(ui.Info("Opening browser for Azure login..."))
 	fmt.Println()
 
 	if err := p.Login(); err != nil {
-		pterm.Error.Printf("Login failed: %v\n", err)
+		fmt.Println(ui.Errorf("Login failed: %v", err))
 		return err
 	}
 
 	fmt.Println()
-	pterm.Success.Println("Successfully logged in to Azure")
-	pterm.FgGray.Println("Run 'cloudctx azure' to select a subscription")
+	fmt.Println(ui.Success("Successfully logged in to Azure"))
+	fmt.Println(ui.Subtle("Run 'cloudctx azure' to select a subscription"))
 
 	return nil
 }
-

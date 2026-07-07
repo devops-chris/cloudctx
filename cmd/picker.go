@@ -1,17 +1,19 @@
 package cmd
 
 import (
+	"fmt"
 	"strings"
 
 	"atomicgo.dev/cursor"
 	"atomicgo.dev/keyboard"
 	"atomicgo.dev/keyboard/keys"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/devops-chris/cloudctx/internal/ui"
 	"github.com/lithammer/fuzzysearch/fuzzy"
-	"github.com/pterm/pterm"
 )
 
 // pickItem is one row in the interactive picker. display is the (possibly
-// colored) string shown to the user; search is the plain text the filter runs
+// styled) string shown to the user; search is the plain text the filter runs
 // against; value is what the picker returns when the row is chosen.
 type pickItem struct {
 	display string
@@ -19,11 +21,15 @@ type pickItem struct {
 	value   string
 }
 
+var (
+	pickerSearchStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#9B9B9B", Dark: "#5C5C5C"})
+	pickerCursorStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#874BFD", Dark: "#7D56F4"}).Bold(true)
+	pickerCountStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#9B9B9B", Dark: "#5C5C5C"})
+)
+
 // matchesQuery reports whether target matches query using fzf-style semantics:
 // the query is split on whitespace and every token must be a (case-insensitive)
-// fuzzy subsequence of target, in any order. This is what lets "admin prod"
-// match "prod-account:AdminRole" — pterm's built-in filter required the tokens
-// to appear in the typed order, which is the behavior we're replacing.
+// fuzzy subsequence of target, in any order.
 func matchesQuery(query, target string) bool {
 	for _, token := range strings.Fields(query) {
 		if !fuzzy.MatchFold(token, target) {
@@ -65,10 +71,23 @@ func windowBounds(total, height, cursor int) (start, end int) {
 	return start, end
 }
 
+// liveArea manages an in-place updating block of terminal output.
+type liveArea struct {
+	lines int
+}
+
+func (a *liveArea) update(content string) {
+	if a.lines > 0 {
+		fmt.Printf("\033[%dA", a.lines)
+	}
+	fmt.Print("\033[J")
+	fmt.Print(content)
+	a.lines = strings.Count(content, "\n")
+}
+
 // runPicker shows an interactive, filterable list. It returns the chosen item's
-// value and ok=true on Enter, or ok=false if the user cancels with Esc/Ctrl+C
-// (in which case nothing should change). maxHeight caps the number of visible
-// rows.
+// value and ok=true on Enter, or ok=false if the user cancels with Esc/Ctrl+C.
+// maxHeight caps the number of visible rows.
 func runPicker(items []pickItem, maxHeight int) (value string, ok bool) {
 	query := ""
 	matched := filterItems(items, query)
@@ -76,22 +95,22 @@ func runPicker(items []pickItem, maxHeight int) (value string, ok bool) {
 
 	render := func() string {
 		var b strings.Builder
-		b.WriteString(pterm.FgGray.Sprint("Search: ") + query + "\n")
+		b.WriteString(pickerSearchStyle.Render("Search: ") + ui.Highlight(query) + "\n")
 		if len(matched) == 0 {
-			b.WriteString(pterm.FgGray.Sprint("  (no matches)") + "\n")
+			b.WriteString(pickerSearchStyle.Render("  (no matches)") + "\n")
 			return b.String()
 		}
 		start, end := windowBounds(len(matched), maxHeight, cur)
 		for i := start; i < end; i++ {
 			it := items[matched[i]]
 			if i == cur {
-				b.WriteString(pterm.FgCyan.Sprint("❯ ") + it.display + "\n")
+				b.WriteString(pickerCursorStyle.Render("❯ ") + it.display + "\n")
 			} else {
 				b.WriteString("  " + it.display + "\n")
 			}
 		}
 		if len(matched) > (end - start) {
-			b.WriteString(pterm.FgGray.Sprintf("  %d/%d\n", cur+1, len(matched)))
+			b.WriteString(pickerCountStyle.Render(fmt.Sprintf("  %d/%d", cur+1, len(matched))) + "\n")
 		}
 		return b.String()
 	}
@@ -108,11 +127,10 @@ func runPicker(items []pickItem, maxHeight int) (value string, ok bool) {
 		}
 	}
 
-	area, err := pterm.DefaultArea.Start(render())
-	if err != nil {
-		return "", false
-	}
-	defer func() { _ = area.Stop() }()
+	initial := render()
+	fmt.Print(initial)
+	area := &liveArea{lines: strings.Count(initial, "\n")}
+
 	cursor.Hide()
 	defer cursor.Show()
 
@@ -148,7 +166,7 @@ func runPicker(items []pickItem, maxHeight int) (value string, ok bool) {
 			return true, nil
 		}
 		clamp()
-		area.Update(render())
+		area.update(render())
 		return false, nil
 	})
 

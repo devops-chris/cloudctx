@@ -5,9 +5,10 @@ import (
 	"os"
 	"os/exec"
 	"sort"
+	"strings"
 
 	"github.com/devops-chris/cloudctx/internal/config"
-	"github.com/pterm/pterm"
+	"github.com/devops-chris/cloudctx/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -27,9 +28,11 @@ func init() {
 
 func runDoctor(cmd *cobra.Command, args []string) error {
 	fmt.Println()
-	pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgDarkGray)).
-		WithTextStyle(pterm.NewStyle(pterm.FgLightWhite)).
-		Println("cloudctx doctor")
+	fmt.Println(ui.Banner())
+
+	// ── Config ───────────────────────────────────────────────────────────────
+
+	fmt.Print(ui.CheckSection("Config"))
 
 	configPath := cfgFile
 	if configPath == "" {
@@ -40,34 +43,37 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		configExists = true
 	}
 
-	pterm.Info.Println("Config")
-	table := pterm.TableData{
-		{"Check", "Result"},
-		{"Config file", configPath},
-		{"Config exists", yesNo(configExists)},
-		{"default_cloud", cfg.DefaultCloud},
+	if configExists {
+		fmt.Println(ui.CheckPass("Config file found: " + configPath))
+	} else {
+		fmt.Println(ui.CheckFail("Config file not found: "+configPath, "Run 'cloudctx aws init' to create it"))
 	}
-	if !configExists {
-		table = append(table, []string{"", pterm.FgYellow.Sprint("Run 'cloudctx aws init' or create config")})
-	}
-	_ = pterm.DefaultTable.WithHasHeader().WithData(table).Render()
-	fmt.Println()
 
-	// AWS-specific checks when default is AWS or when we have AWS orgs
-	orgs := cfg.AWSOrgs()
-	defaultOrg := cfg.AWSDefaultOrg()
+	if cfg.DefaultCloud != "" {
+		fmt.Println(ui.CheckPass("default_cloud: " + cfg.DefaultCloud))
+	} else {
+		fmt.Println(ui.CheckWarn("default_cloud not set", "Add default_cloud: aws (or azure) to your config"))
+	}
+
 	if cfg.DefaultCloud == "azure" || cfg.DefaultCloud == "az" {
-		pterm.Info.Println("Default cloud is Azure; skipping AWS checks (use 'cloudctx aws ...' for AWS).")
+		fmt.Println()
+		fmt.Println(ui.CheckWarn("Default cloud is Azure; skipping AWS checks", "Use 'cloudctx aws ...' for AWS-specific commands"))
 		fmt.Println()
 		return nil
 	}
 
-	pterm.Info.Println("AWS")
-	awsTable := pterm.TableData{
-		{"Check", "Result"},
-		{"AWS CLI in PATH", yesNo(awsCLIInPath())},
-		{"AWS orgs configured", yesNo(len(orgs) > 0)},
+	// ── AWS ──────────────────────────────────────────────────────────────────
+
+	fmt.Print(ui.CheckSection("AWS"))
+
+	if awsCLIInPath() {
+		fmt.Println(ui.CheckPass("AWS CLI found in PATH"))
+	} else {
+		fmt.Println(ui.CheckFail("AWS CLI not found in PATH", "Install with: brew install awscli"))
 	}
+
+	orgs := cfg.AWSOrgs()
+	defaultOrg := cfg.AWSDefaultOrg()
 	if len(orgs) > 0 {
 		names := make([]string, 0, len(orgs))
 		for k := range orgs {
@@ -78,62 +84,51 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		if def == "" {
 			def = "(none set)"
 		}
-		awsTable = append(awsTable, []string{"Org names", fmt.Sprintf("%v", names)})
-		awsTable = append(awsTable, []string{"Default org", def})
+		fmt.Println(ui.CheckPass(fmt.Sprintf("%d org(s) configured: %s", len(orgs), strings.Join(names, ", "))))
+		fmt.Println(ui.CheckPass("Default org: " + def))
+	} else {
+		fmt.Println(ui.CheckFail("No AWS orgs configured", "Run 'cloudctx aws init' or 'cloudctx aws org add'"))
 	}
-	_ = pterm.DefaultTable.WithHasHeader().WithData(awsTable).Render()
-	fmt.Println()
+
+	// ── Current context ───────────────────────────────────────────────────────
+
+	fmt.Print(ui.CheckSection("Current context"))
 
 	p := getAWSListProvider()
 	contexts, err := p.ListContexts()
 	if err != nil {
-		pterm.Warning.Printf("Could not list profiles: %v\n", err)
+		fmt.Println(ui.CheckWarn(fmt.Sprintf("Could not list profiles: %v", err), ""))
 		fmt.Println()
 		return nil
 	}
+	fmt.Println(ui.CheckPass(fmt.Sprintf("%d profile(s) in ~/.aws/config", len(contexts))))
+
 	current, _ := p.CurrentContext()
-	currentName := ""
-	currentOrg := ""
 	if current != nil {
-		currentName = current.Name
-		currentOrg = current.Org
+		fmt.Println(ui.CheckPass("Current profile: " + current.Name))
+		if current.Org != "" {
+			fmt.Println(ui.CheckPass("Current org: " + current.Org))
+		}
+	} else {
+		fmt.Println(ui.CheckWarn("No profile set", "Run 'cloudctx aws <profile>' to select one"))
 	}
 
-	pterm.Info.Println("Current context")
-	ctxTable := pterm.TableData{
-		{"Check", "Result"},
-		{"Profiles in ~/.aws", fmt.Sprintf("%d", len(contexts))},
-		{"Current profile", currentName},
-	}
-	if currentOrg != "" {
-		ctxTable = append(ctxTable, []string{"Current org", currentOrg})
-	}
-	if currentName == "" {
-		ctxTable = append(ctxTable, []string{"", pterm.FgYellow.Sprint("No profile set — run 'cloudctx' or 'cloudctx aws <profile>'")})
-	}
-	_ = pterm.DefaultTable.WithHasHeader().WithData(ctxTable).Render()
-	fmt.Println()
+	// ── Credentials / SSO ────────────────────────────────────────────────────
 
-	pterm.Info.Println("Credentials / SSO")
+	fmt.Print(ui.CheckSection("Credentials / SSO"))
+
 	_, err = p.WhoAmI()
 	if err != nil {
-		pterm.Error.Println("Cannot get AWS identity (credentials or SSO token invalid/missing)")
-		pterm.FgGray.Println("Fix: cloudctx login   (or cloudctx login --org <org>)")
-		pterm.FgGray.Printf("Error: %v\n", err)
-		fmt.Println()
-		return nil
+		fmt.Println(ui.CheckFail(
+			"Cannot get AWS identity — credentials or SSO token invalid/missing",
+			"Fix: cloudctx login   (or cloudctx login --org <org>)\nError: "+err.Error(),
+		))
+	} else {
+		fmt.Println(ui.CheckPass("AWS identity verified — you can call AWS APIs"))
 	}
-	pterm.Success.Println("AWS identity OK — you can call AWS APIs.")
+
 	fmt.Println()
-
 	return nil
-}
-
-func yesNo(b bool) string {
-	if b {
-		return pterm.FgGreen.Sprint("yes")
-	}
-	return pterm.FgRed.Sprint("no")
 }
 
 func awsCLIInPath() bool {
