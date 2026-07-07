@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-07-07
+
+### Added
+- **Dynamic shell completion** — `cloudctx completion zsh|bash|fish|powershell` now completes AWS profile names, Azure subscription names, `--org` flag values (org names + `all`), and org name arguments for `org remove` and `org rename`. Enable with `source <(cloudctx completion zsh)` (or your shell's equivalent); see `cloudctx completion --help`.
+
 ## [0.5.0] - 2026-07-07
 
 ### Changed

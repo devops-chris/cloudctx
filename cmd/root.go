@@ -115,6 +115,9 @@ func init() {
 
 	// --org is used by AWS (login/sync/list); on root so "cloudctx sync --org all" works
 	rootCmd.PersistentFlags().StringVar(&awsOrg, "org", "", "AWS org for login/sync/list (e.g. work, or all for sync)")
+	// Register here (not in completion.go) because completion.go's init() runs before root.go's
+	// due to lexical file ordering — the flag doesn't exist yet when completion.go init() fires.
+	_ = rootCmd.RegisterFlagCompletionFunc("org", completeOrgNames)
 
 	// Add shortcuts for common commands (routed based on default cloud)
 	rootCmd.AddCommand(createLoginShortcut())
